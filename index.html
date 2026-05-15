@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoBibi 🎬</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- SIDEBAR (desktop) -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🎬</div>
+    <div class="logo-text">MoBibi</div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a class="nav-item active" data-page="home" href="#" onclick="navigate('home'); return false;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Início
+    </a>
+    <a class="nav-item" data-page="draw" href="#" onclick="navigate('draw'); return false;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Sortear
+    </a>
+    <a class="nav-item" data-page="watchlist" href="#" onclick="navigate('watchlist'); return false;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Lista
+    </a>
+    <a class="nav-item" data-page="watched" href="#" onclick="navigate('watched'); return false;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Assistidos
+    </a>
+  </nav>
+
+</aside>
+
+<!-- MOBILE HEADER -->
+<header class="mobile-header">
+  <div class="mobile-logo">
+    <span>🎬</span>
+    <span class="logo-text">MoBibi</span>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- HOME PAGE -->
+  <section class="page active" id="page-home">
+    <div class="page-hero">
+      <h1 class="hero-title" id="heroTitle">Sua Jornada Cinematográfica</h1>
+      <p class="hero-sub" id="heroSub">Filmes de vocês dois ❤️</p>
+    </div>
+
+    <!-- Tonight's Pick -->
+    <div class="tonight-card" id="tonightCard" style="display:none">
+      <div class="tonight-poster-wrap">
+        <img class="tonight-poster" id="tonightPoster" src="" alt="">
+        <div class="tonight-poster-ph" id="tonightPosterPh">🎬</div>
+      </div>
+      <div class="tonight-info">
+        <div class="tonight-badge">🎬 Hoje vocês vão ver</div>
+        <h2 class="tonight-title" id="tonightTitle"></h2>
+        <div class="tonight-meta" id="tonightMeta"></div>
+        <div class="tonight-actions">
+          <button class="btn-primary" onclick="openMarkWatched(state.tonightPick, true)">✅ Acabamos de ver!</button>
+          <button class="btn-ghost" onclick="clearTonightPick()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number" id="s-watched">0</div>
+        <div class="stat-label">Assistidos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number gold" id="s-myavg">—</div>
+        <div class="stat-label">Média <span id="s-myname">Você</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number gold" id="s-heravg">—</div>
+        <div class="stat-label">Média <span id="s-hername">Ela</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="s-list">0</div>
+        <div class="stat-label">Na Lista</div>
+      </div>
+      <div class="stat-card stat-card-wide">
+        <div class="stat-number" id="s-hours">0h</div>
+        <div class="stat-label">Horas assistidas juntos</div>
+      </div>
+    </div>
+
+    <!-- Quick draw promo -->
+    <div class="home-promo" id="homePromo">
+      <div class="promo-text">
+        <h2>Não sabe o que ver?</h2>
+        <p>Deixa o destino escolher pra vocês</p>
+      </div>
+      <button class="btn-draw-sm" onclick="navigate('draw')">🎲 Sortear Agora</button>
+    </div>
+
+    <!-- Recent watched -->
+    <div class="section-block" id="recentBlock" style="display:none">
+      <div class="section-hdr">
+        <h2 class="section-title">Últimos Assistidos</h2>
+        <a class="section-link" href="#" onclick="navigate('watched'); return false;">Ver todos →</a>
+      </div>
+      <div class="movies-grid" id="home-recent"></div>
+    </div>
+
+    <!-- Loading state -->
+    <div class="loading-state" id="homeLoading" style="display:none">
+      <div class="spinner"></div>
+      <p>Carregando dados...</p>
+    </div>
+  </section>
+
+  <!-- DRAW PAGE -->
+  <section class="page" id="page-draw">
+    <div class="page-hero">
+      <h1 class="hero-title">Sortear Filme</h1>
+      <p class="hero-sub">Que filme vamos ver hoje?</p>
+    </div>
+
+    <div class="draw-stage">
+      <!-- Slot display -->
+      <div class="slot-wrap">
+        <div class="slot-scanline"></div>
+        <div class="slot-text" id="slotText">?</div>
+      </div>
+
+      <!-- Big draw button -->
+      <button class="draw-btn" id="drawBtn" onclick="drawMovie()">
+        <div class="draw-ring" id="drawRing"></div>
+        <div class="draw-content">
+          <div class="draw-icon">🎬</div>
+          <div class="draw-label" id="drawLabel">SORTEAR</div>
+        </div>
+      </button>
+
+      <!-- Result card -->
+      <div class="draw-result" id="drawResult" style="display:none">
+        <div class="result-card">
+          <div class="result-poster-wrap">
+            <img class="result-poster" id="resultPoster" src="" alt="" style="display:none">
+            <div class="result-poster-ph" id="resultPosterPh">🎬</div>
+          </div>
+          <div class="result-info">
+            <h2 class="result-title" id="resultTitle"></h2>
+            <div class="result-tags" id="resultTags"></div>
+          </div>
+        </div>
+        <div class="result-actions">
+          <button class="btn-secondary" onclick="drawMovie()">🔄 Sortear de Novo</button>
+          <button class="btn-primary" onclick="acceptDraw()">✅ Escolhemos Este!</button>
+        </div>
+      </div>
+
+      <div class="draw-empty" id="drawEmpty" style="display:none">
+        <p>Sua lista está vazia. <a href="#" onclick="navigate('watchlist'); return false;">Adicione filmes!</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- WATCHLIST PAGE -->
+  <section class="page" id="page-watchlist">
+    <div class="page-header-row">
+      <div>
+        <h1 class="hero-title">Lista pra Ver</h1>
+        <p class="hero-sub" id="watchlist-count">0 filmes</p>
+      </div>
+      <button class="btn-primary" onclick="openModal('addMovieModal')">+ Adicionar</button>
+    </div>
+
+    <div class="filter-row">
+      <input class="search-input" type="text" id="watchlistSearch" placeholder="🔍 Buscar filme..." oninput="filterWatchlist()">
+      <select class="sort-select" id="watchlistSort" onchange="filterWatchlist()">
+        <option value="added-desc">Mais recentes</option>
+        <option value="added-asc">Mais antigos</option>
+        <option value="title-asc">A → Z</option>
+        <option value="title-desc">Z → A</option>
+      </select>
+    </div>
+
+    <div class="movies-grid" id="watchlist-grid"></div>
+
+    <div class="empty-state" id="watchlist-empty" style="display:none">
+      <div class="empty-icon">📋</div>
+      <h2>Lista vazia!</h2>
+      <p>Adicione filmes que vocês querem ver.</p>
+      <button class="btn-primary" onclick="openModal('addMovieModal')">+ Adicionar Filme</button>
+    </div>
+
+    <div class="loading-state" id="watchlistLoading" style="display:none">
+      <div class="spinner"></div>
+    </div>
+  </section>
+
+  <!-- WATCHED PAGE -->
+  <section class="page" id="page-watched">
+    <div class="page-header-row">
+      <div>
+        <h1 class="hero-title">Filmes Assistidos</h1>
+        <p class="hero-sub" id="watched-count">0 filmes</p>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <input class="search-input" type="text" id="watchedSearch" placeholder="🔍 Buscar filme..." oninput="filterWatched()">
+      <select class="sort-select" id="watchedSort" onchange="filterWatched()">
+        <option value="date-desc">Mais recentes</option>
+        <option value="date-asc">Mais antigos</option>
+        <option value="myscore-desc">Maior nota Gil</option>
+        <option value="herscore-desc">Maior nota Bia</option>
+        <option value="avg-desc">Maior média</option>
+      </select>
+    </div>
+
+    <div class="movies-grid" id="watched-grid"></div>
+
+    <div class="empty-state" id="watched-empty" style="display:none">
+      <div class="empty-icon">⭐</div>
+      <h2>Nenhum filme ainda</h2>
+      <p>Quando vocês assistirem um filme, ele aparece aqui.</p>
+    </div>
+
+    <div class="loading-state" id="watchedLoading" style="display:none">
+      <div class="spinner"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mobile-nav">
+  <a class="mobile-nav-item active" data-page="home" href="#" onclick="navigate('home'); return false;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span>Início</span>
+  </a>
+  <a class="mobile-nav-item" data-page="draw" href="#" onclick="navigate('draw'); return false;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span>Sortear</span>
+  </a>
+  <a class="mobile-nav-item" data-page="watchlist" href="#" onclick="navigate('watchlist'); return false;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    <span>Lista</span>
+  </a>
+  <a class="mobile-nav-item" data-page="watched" href="#" onclick="navigate('watched'); return false;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    <span>Assistidos</span>
+  </a>
+</nav>
+
+<!-- ===== MODALS ===== -->
+
+
+<!-- Add Movie Modal -->
+<div class="modal-overlay" id="addMovieModal" onclick="closeModalOutside(event,'addMovieModal')">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>🎬 Adicionar Filme</h2>
+      <button class="modal-close" onclick="closeModal('addMovieModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="search-row" id="tmdbSearchRow">
+        <input class="form-input" type="text" id="tmdbSearch" placeholder="Buscar filme por título..." onkeydown="if(event.key==='Enter') searchTMDB()">
+        <button class="btn-primary btn-sm" onclick="searchTMDB()" id="tmdbSearchBtn">Buscar</button>
+      </div>
+
+      <div id="tmdbResults" class="tmdb-results"></div>
+
+      <div class="divider-or">ou preencha manualmente</div>
+
+      <div class="form-group">
+        <label class="form-label">Título *</label>
+        <input class="form-input" type="text" id="add-title" placeholder="Nome do filme">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Gênero</label>
+          <input class="form-input" type="text" id="add-genre" placeholder="Ex: Ação, Drama">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Duração</label>
+          <input class="form-input" type="text" id="add-duration" placeholder="02:05:00">
+        </div>
+      </div>
+      <input type="hidden" id="add-poster">
+
+      <!-- Selected preview -->
+      <div class="selected-preview" id="selectedPreview" style="display:none">
+        <img class="sel-poster" id="selPosterImg" src="" alt="">
+        <div class="sel-info">
+          <div class="sel-title" id="selTitle"></div>
+          <div class="sel-meta" id="selMeta"></div>
+          <button class="btn-ghost btn-sm" onclick="clearSelection()">✕ Limpar</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal('addMovieModal')">Cancelar</button>
+      <button class="btn-primary" onclick="confirmAddMovie()">Adicionar à Lista</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mark Watched Modal -->
+<div class="modal-overlay" id="watchedModal" onclick="closeModalOutside(event,'watchedModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>✅ Marcar como Assistido</h2>
+      <button class="modal-close" onclick="closeModal('watchedModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="watched-movie-preview" id="watchedPreview"></div>
+
+      <div class="form-group">
+        <label class="form-label">Data que assistiram</label>
+        <input class="form-input" type="date" id="watched-date">
+      </div>
+
+      <div class="rating-block">
+        <label class="form-label">Nota — <span id="r-myname">Você</span></label>
+        <div class="rating-row">
+          <input type="range" class="rating-slider" min="0" max="5" step="0.5" id="myRatingSlider" value="3.5" oninput="updateRating('my', this.value)">
+          <span class="rating-badge" id="myRatingBadge">3.5</span>
+        </div>
+        <div class="stars-display" id="myStars"></div>
+      </div>
+
+      <div class="rating-block">
+        <label class="form-label">Nota — <span id="r-hername">Ela</span></label>
+        <div class="rating-row">
+          <input type="range" class="rating-slider" min="0" max="5" step="0.5" id="herRatingSlider" value="3.5" oninput="updateRating('her', this.value)">
+          <span class="rating-badge" id="herRatingBadge">3.5</span>
+        </div>
+        <div class="stars-display" id="herStars"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal('watchedModal')">Cancelar</button>
+      <button class="btn-primary" id="confirmWatchedBtn" onclick="confirmMarkWatched()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
