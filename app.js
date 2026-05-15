@@ -56,9 +56,11 @@ const API = {
 
   async getWatchlist()    { return (await this.get('getWatchlist')).movies || []; },
   async getWatched()      { return (await this.get('getWatched')).movies || []; },
-  async addToWatchlist(m) { return this.post({ action: 'addToWatchlist', ...m }); },
-  async markAsWatched(m)  { return this.post({ action: 'markAsWatched', ...m }); },
-  async removeFromList(t) { return this.post({ action: 'removeFromWatchlist', title: t }); },
+  async addToWatchlist(m)   { return this.post({ action: 'addToWatchlist', ...m }); },
+  async markAsWatched(m)    { return this.post({ action: 'markAsWatched', ...m }); },
+  async removeFromList(t)   { return this.post({ action: 'removeFromWatchlist', title: t }); },
+  async updateWatched(m)    { return this.post({ action: 'updateWatched', ...m }); },
+  async removeFromWatched(t){ return this.post({ action: 'removeFromWatched', title: t }); },
 };
 
 // ============================================================
@@ -266,12 +268,18 @@ function movieCardHTML(movie, type, readonly = false) {
 
   let actionsHTML = '';
   if (!readonly) {
+    const safeTitle = esc(movie.title);
     if (type === 'watchlist') {
-      const safeTitle = esc(movie.title);
       actionsHTML = `
         <div class="movie-card-actions">
           <button class="card-btn card-btn-watched" onclick="event.stopPropagation(); openMarkWatchedByTitle('${safeTitle}')">✅ Assistimos!</button>
           <button class="card-btn card-btn-delete" onclick="event.stopPropagation(); removeByTitle('${safeTitle}')">🗑️ Remover</button>
+        </div>`;
+    } else if (type === 'watched') {
+      actionsHTML = `
+        <div class="movie-card-actions">
+          <button class="card-btn card-btn-watched" onclick="event.stopPropagation(); editWatchedByTitle('${safeTitle}')">✏️ Editar</button>
+          <button class="card-btn card-btn-delete" onclick="event.stopPropagation(); deleteWatchedByTitle('${safeTitle}')">🗑️ Remover</button>
         </div>`;
     }
   }
@@ -301,6 +309,10 @@ function openModal(id) {
 function closeModal(id) {
   const el = document.getElementById(id);
   if (el) { el.classList.remove('open'); el.style.display = 'none'; }
+  if (id === 'watchedModal' && state.editingWatched) {
+    state.editingWatched = false;
+    document.getElementById('confirmWatchedBtn').textContent = 'Salvar';
+  }
 }
 
 function closeModalOutside(event, id) {
@@ -468,6 +480,61 @@ function removeByTitle(title) {
   if (movie) removeFromWatchlist(movie);
 }
 
+function editWatchedByTitle(title) {
+  const decoded = title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+  const movie = state.watched.find(m => m.title === decoded);
+  if (!movie) return;
+
+  state.markingMovie    = movie;
+  state.editingWatched  = true;
+
+  document.getElementById('r-myname').textContent  = cfg.myName;
+  document.getElementById('r-hername').textContent = cfg.herName;
+
+  const preview = document.getElementById('watchedPreview');
+  preview.innerHTML = `
+    <div style="display:flex; align-items:center; gap:14px;">
+      ${movie.poster
+        ? `<img class="prev-poster" src="${esc(movie.poster)}" alt="" onerror="this.style.display='none'">`
+        : `<div class="prev-poster-ph">🎬</div>`}
+      <div>
+        <div class="prev-title">${esc(movie.title)}</div>
+        <div class="prev-meta">${esc([movie.genre, movie.duration].filter(Boolean).join(' • '))}</div>
+      </div>
+    </div>`;
+
+  // Preenche data existente (converte dd/MM/yyyy → yyyy-MM-dd)
+  const parts = (movie.date || '').split('/');
+  const dateVal = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : new Date().toISOString().slice(0,10);
+  document.getElementById('watched-date').value = dateVal;
+
+  // Preenche notas existentes
+  const my  = parseFloat(movie.myScore)  || 0;
+  const her = parseFloat(movie.herScore) || 0;
+  document.getElementById('myRatingSlider').value  = my;
+  document.getElementById('herRatingSlider').value = her;
+  updateRating('my',  my);
+  updateRating('her', her);
+
+  document.getElementById('confirmWatchedBtn').textContent = 'Salvar Edição';
+  openModal('watchedModal');
+}
+
+async function deleteWatchedByTitle(title) {
+  const decoded = title.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+  if (!confirm(`Remover "${decoded}" dos assistidos?`)) return;
+
+  state.watched = state.watched.filter(m => m.title !== decoded);
+  renderWatched();
+  renderHome();
+  showToast(`"${decoded}" removido dos assistidos.`, 'info');
+
+  if (cfg.scriptUrl) {
+    try { await API.removeFromWatched(decoded); }
+    catch { /* Fail silently */ }
+  }
+}
+
 // ============================================================
 // REMOVE FROM WATCHLIST
 // ============================================================
@@ -535,30 +602,47 @@ async function confirmMarkWatched() {
   const movie = state.markingMovie;
   if (!movie) return;
 
-  const date     = document.getElementById('watched-date').value;
+  const rawDate  = document.getElementById('watched-date').value;
   const myScore  = parseFloat(document.getElementById('myRatingSlider').value).toFixed(1);
   const herScore = parseFloat(document.getElementById('herRatingSlider').value).toFixed(1);
+  // Converte yyyy-MM-dd → dd/MM/yyyy para exibição
+  const [y, mo, d] = rawDate.split('-');
+  const date = `${d}/${mo}/${y}`;
+
+  if (state.editingWatched) {
+    // Modo edição — atualiza entrada existente
+    const idx = state.watched.findIndex(m => m.title === movie.title);
+    if (idx !== -1) {
+      state.watched[idx] = { ...state.watched[idx], date, myScore, herScore };
+    }
+    state.editingWatched = false;
+    document.getElementById('confirmWatchedBtn').textContent = 'Salvar';
+    closeModal('watchedModal');
+    showToast(`"${movie.title}" atualizado!`, 'success');
+    renderWatched();
+    renderHome();
+    if (cfg.scriptUrl) {
+      try { await API.updateWatched({ title: movie.title, date, myScore, herScore }); }
+      catch { showToast('Erro ao salvar na planilha.', 'error'); }
+    }
+    return;
+  }
 
   const watchedEntry = { ...movie, date, myScore, herScore };
 
   // Optimistic update
   state.watched.push(watchedEntry);
   state.watchlist = state.watchlist.filter(m => m.title !== movie.title);
-
-  if (state.tonightPick?.title === movie.title) {
-    state.tonightPick = null;
-  }
+  if (state.tonightPick?.title === movie.title) state.tonightPick = null;
 
   closeModal('watchedModal');
   showToast(`"${movie.title}" marcado como assistido! ⭐`, 'success');
 
-  // Refresh current page
   const activePage = document.querySelector('.page.active')?.id?.replace('page-', '');
   if (activePage === 'home') renderHome();
   if (activePage === 'watchlist') renderWatchlist();
   if (activePage === 'watched') renderWatched();
 
-  // Persist
   if (cfg.scriptUrl) {
     try { await API.markAsWatched(watchedEntry); }
     catch { showToast('Erro ao salvar na planilha.', 'error'); }
