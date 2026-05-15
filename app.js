@@ -334,7 +334,6 @@ function movieCardHTML(movie, type, readonly = false) {
         ${metaLine ? `<div class="movie-card-meta">${esc(metaLine)}</div>` : ''}
         ${scoresHTML}
       </div>
-      ${actionsHTML}
     </div>`;
 }
 
