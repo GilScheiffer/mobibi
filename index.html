@@ -352,6 +352,27 @@
   </div>
 </div>
 
+<!-- Movie Detail Modal (assistidos) -->
+<div class="modal-overlay" id="movieDetailModal" onclick="closeModalOutside(event,'movieDetailModal')">
+  <div class="modal modal-detail">
+    <button class="modal-close" onclick="closeModal('movieDetailModal')">✕</button>
+    <div class="detail-poster-wrap">
+      <img class="detail-poster" id="detail-poster" src="" alt="" style="display:none" onerror="this.style.display='none'; document.getElementById('detail-poster-ph').style.display='flex'">
+      <div class="detail-poster-ph" id="detail-poster-ph">🎬</div>
+    </div>
+    <div class="detail-body">
+      <h2 class="detail-title" id="detail-title"></h2>
+      <div class="detail-meta" id="detail-meta"></div>
+      <div class="detail-date" id="detail-date"></div>
+      <div class="detail-scores" id="detail-scores"></div>
+    </div>
+    <div class="modal-footer detail-footer">
+      <button class="btn-ghost" onclick="closeModal('movieDetailModal'); deleteWatchedByTitle(state._detailTitle)">🗑️ Remover</button>
+      <button class="btn-primary" onclick="closeModal('movieDetailModal'); editWatchedByTitle(state._detailTitle)">✏️ Editar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast container -->
 <div class="toast-container" id="toastContainer"></div>
 

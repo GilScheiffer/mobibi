@@ -275,17 +275,13 @@ function movieCardHTML(movie, type, readonly = false) {
           <button class="card-btn card-btn-watched" onclick="event.stopPropagation(); openMarkWatchedByTitle('${safeTitle}')">✅ Assistimos!</button>
           <button class="card-btn card-btn-delete" onclick="event.stopPropagation(); removeByTitle('${safeTitle}')">🗑️ Remover</button>
         </div>`;
-    } else if (type === 'watched') {
-      actionsHTML = `
-        <div class="movie-card-actions">
-          <button class="card-btn card-btn-watched" onclick="event.stopPropagation(); editWatchedByTitle('${safeTitle}')">✏️ Editar</button>
-          <button class="card-btn card-btn-delete" onclick="event.stopPropagation(); deleteWatchedByTitle('${safeTitle}')">🗑️ Remover</button>
-        </div>`;
     }
   }
 
+  const clickHandler = type === 'watched' ? `onclick="openWatchedDetail('${esc(movie.title)}')" style="cursor:pointer"` : '';
+
   return `
-    <div class="movie-card">
+    <div class="movie-card" ${clickHandler}>
       ${posterHTML}
       ${phHTML}
       <div class="movie-card-gradient"></div>
@@ -533,6 +529,45 @@ async function deleteWatchedByTitle(title) {
     try { await API.removeFromWatched(decoded); }
     catch { /* Fail silently */ }
   }
+}
+
+function openWatchedDetail(title) {
+  const movie = state.watched.find(m => m.title === title);
+  if (!movie) return;
+
+  state._detailTitle = title;
+
+  const posterEl = document.getElementById('detail-poster');
+  const posterPh = document.getElementById('detail-poster-ph');
+  if (movie.poster) {
+    posterEl.src = movie.poster;
+    posterEl.style.display = 'block';
+    posterPh.style.display = 'none';
+  } else {
+    posterEl.style.display = 'none';
+    posterPh.style.display = 'flex';
+  }
+
+  document.getElementById('detail-title').textContent = movie.title;
+  document.getElementById('detail-meta').textContent  = [movie.genre, movie.duration].filter(Boolean).join(' • ');
+  document.getElementById('detail-date').textContent  = movie.date ? `📅 ${movie.date}` : '';
+
+  const myScore  = movie.myScore  != null && movie.myScore  !== '' ? parseFloat(movie.myScore)  : null;
+  const herScore = movie.herScore != null && movie.herScore !== '' ? parseFloat(movie.herScore) : null;
+  const scores   = document.getElementById('detail-scores');
+  scores.innerHTML = `
+    <div class="detail-score-row">
+      <span class="detail-score-name">${cfg.myName}</span>
+      <span class="detail-score-stars">${myScore !== null ? starsHTML(myScore) : '—'}</span>
+      <span class="detail-score-val">${myScore !== null ? myScore.toFixed(1) : ''}</span>
+    </div>
+    <div class="detail-score-row">
+      <span class="detail-score-name">${cfg.herName}</span>
+      <span class="detail-score-stars">${herScore !== null ? starsHTML(herScore) : '—'}</span>
+      <span class="detail-score-val">${herScore !== null ? herScore.toFixed(1) : ''}</span>
+    </div>`;
+
+  openModal('movieDetailModal');
 }
 
 // ============================================================
