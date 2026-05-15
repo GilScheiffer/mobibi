@@ -176,33 +176,60 @@ function renderWatchlist() {
   filterWatchlist();
 }
 
-function filterWatchlist() {
+const WATCHLIST_PER_PAGE = 18;
+
+function filterWatchlist(resetPage = false) {
+  if (resetPage) state._watchlistPage = 0;
+  if (!state._watchlistPage) state._watchlistPage = 0;
+
   const query   = (document.getElementById('watchlistSearch')?.value || '').toLowerCase();
   const sort    = document.getElementById('watchlistSort')?.value || 'added-desc';
   const grid    = document.getElementById('watchlist-grid');
   const empty   = document.getElementById('watchlist-empty');
   const count   = document.getElementById('watchlist-count');
-  const loading = document.getElementById('watchlistLoading');
+  const pag     = document.getElementById('watchlist-pagination');
 
-  loading.style.display = 'none';
+  document.getElementById('watchlistLoading').style.display = 'none';
   count.textContent = `${state.watchlist.length} ${state.watchlist.length === 1 ? 'filme' : 'filmes'}`;
 
   let list = state.watchlist.filter(m => m.title.toLowerCase().includes(query));
 
   list.sort((a, b) => {
-    if (sort === 'added-asc')  return (a.addedAt || '').localeCompare(b.addedAt || '');
+    if (sort === 'added-asc')  return dateToNum(a.addedAt) - dateToNum(b.addedAt);
     if (sort === 'title-asc')  return a.title.localeCompare(b.title);
     if (sort === 'title-desc') return b.title.localeCompare(a.title);
-    return (b.addedAt || '').localeCompare(a.addedAt || ''); // added-desc
+    return dateToNum(b.addedAt) - dateToNum(a.addedAt); // added-desc
   });
 
   if (!list.length) {
     grid.innerHTML = '';
     empty.style.display = 'flex';
+    pag.style.display = 'none';
     return;
   }
   empty.style.display = 'none';
-  grid.innerHTML = list.map(m => movieCardHTML(m, 'watchlist')).join('');
+
+  const totalPages = Math.ceil(list.length / WATCHLIST_PER_PAGE);
+  state._watchlistPage = Math.max(0, Math.min(state._watchlistPage, totalPages - 1));
+  const page  = state._watchlistPage;
+  const slice = list.slice(page * WATCHLIST_PER_PAGE, (page + 1) * WATCHLIST_PER_PAGE);
+
+  grid.innerHTML = slice.map(m => movieCardHTML(m, 'watchlist')).join('');
+
+  if (totalPages > 1) {
+    pag.style.display = 'flex';
+    document.getElementById('wl-page-info').textContent = `${page + 1} / ${totalPages}`;
+    document.getElementById('wl-page-prev').disabled = page === 0;
+    document.getElementById('wl-page-next').disabled = page === totalPages - 1;
+  } else {
+    pag.style.display = 'none';
+  }
+}
+
+function changeWatchlistPage(delta) {
+  state._watchlistPage = (state._watchlistPage || 0) + delta;
+  filterWatchlist();
+  document.getElementById('page-watchlist')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ============================================================

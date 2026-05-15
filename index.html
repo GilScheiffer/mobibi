@@ -192,6 +192,12 @@
 
     <div class="movies-grid" id="watchlist-grid"></div>
 
+    <div class="pagination" id="watchlist-pagination" style="display:none">
+      <button class="page-btn" id="wl-page-prev" onclick="changeWatchlistPage(-1)">← Anterior</button>
+      <span class="page-info" id="wl-page-info"></span>
+      <button class="page-btn" id="wl-page-next" onclick="changeWatchlistPage(1)">Próxima →</button>
+    </div>
+
     <div class="empty-state" id="watchlist-empty" style="display:none">
       <div class="empty-icon">📋</div>
       <h2>Lista vazia!</h2>
