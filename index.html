@@ -222,9 +222,18 @@
         <option value="herscore-desc">Maior nota Bia</option>
         <option value="avg-desc">Maior média</option>
       </select>
+      <select class="sort-select" id="watchedGenre" onchange="filterWatched()">
+        <option value="">Todos os gêneros</option>
+      </select>
     </div>
 
     <div class="movies-grid" id="watched-grid"></div>
+
+    <div class="pagination" id="watched-pagination" style="display:none">
+      <button class="page-btn" id="page-prev" onclick="changePage(-1)">← Anterior</button>
+      <span class="page-info" id="page-info"></span>
+      <button class="page-btn" id="page-next" onclick="changePage(1)">Próxima →</button>
+    </div>
 
     <div class="empty-state" id="watched-empty" style="display:none">
       <div class="empty-icon">⭐</div>

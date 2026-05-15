@@ -212,28 +212,59 @@ function renderWatched() {
   filterWatched();
 }
 
-function filterWatched() {
-  const query   = (document.getElementById('watchedSearch')?.value || '').toLowerCase();
-  const sort    = document.getElementById('watchedSort')?.value || 'date-desc';
-  const grid    = document.getElementById('watched-grid');
-  const empty   = document.getElementById('watched-empty');
-  const count   = document.getElementById('watched-count');
-  const loading = document.getElementById('watchedLoading');
+const WATCHED_PER_PAGE = 18;
 
-  loading.style.display = 'none';
+// Converte "dd/MM/yyyy" → número comparável (yyyyMMdd)
+function dateToNum(str) {
+  if (!str) return 0;
+  const p = str.split('/');
+  if (p.length === 3) return parseInt(p[2] + p[1] + p[0], 10);
+  return 0;
+}
 
-  let list = state.watched.filter(m => m.title.toLowerCase().includes(query));
+function populateGenreFilter() {
+  const sel = document.getElementById('watchedGenre');
+  if (!sel) return;
+  const current = sel.value;
+  const genres = new Set();
+  state.watched.forEach(m => {
+    (m.genre || '').split(',').forEach(g => { const t = g.trim(); if (t) genres.add(t); });
+  });
+  const sorted = [...genres].sort();
+  sel.innerHTML = '<option value="">Todos os gêneros</option>' +
+    sorted.map(g => `<option value="${esc(g)}"${current === g ? ' selected' : ''}>${esc(g)}</option>`).join('');
+}
+
+function filterWatched(resetPage = false) {
+  if (resetPage) state._watchedPage = 0;
+  if (!state._watchedPage) state._watchedPage = 0;
+
+  const query  = (document.getElementById('watchedSearch')?.value || '').toLowerCase();
+  const sort   = document.getElementById('watchedSort')?.value || 'date-desc';
+  const genre  = document.getElementById('watchedGenre')?.value || '';
+  const grid   = document.getElementById('watched-grid');
+  const empty  = document.getElementById('watched-empty');
+  const count  = document.getElementById('watched-count');
+  const pag    = document.getElementById('watched-pagination');
+
+  document.getElementById('watchedLoading').style.display = 'none';
+
+  let list = state.watched.filter(m => {
+    if (!m.title.toLowerCase().includes(query)) return false;
+    if (genre && !(m.genre || '').split(',').map(g => g.trim()).includes(genre)) return false;
+    return true;
+  });
 
   list.sort((a, b) => {
-    if (sort === 'date-asc')       return (a.date || '').localeCompare(b.date || '');
-    if (sort === 'myscore-desc')   return parseFloat(b.myScore||0) - parseFloat(a.myScore||0);
-    if (sort === 'herscore-desc')  return parseFloat(b.herScore||0) - parseFloat(a.herScore||0);
+    if (sort === 'date-asc')      return dateToNum(a.date) - dateToNum(b.date);
+    if (sort === 'myscore-desc')  return parseFloat(b.myScore||0) - parseFloat(a.myScore||0);
+    if (sort === 'herscore-desc') return parseFloat(b.herScore||0) - parseFloat(a.herScore||0);
     if (sort === 'avg-desc') {
       const avgA = (parseFloat(a.myScore||0) + parseFloat(a.herScore||0)) / 2;
       const avgB = (parseFloat(b.myScore||0) + parseFloat(b.herScore||0)) / 2;
       return avgB - avgA;
     }
-    return (b.date || '').localeCompare(a.date || ''); // date-desc
+    return dateToNum(b.date) - dateToNum(a.date); // date-desc
   });
 
   count.textContent = `${state.watched.length} ${state.watched.length === 1 ? 'filme' : 'filmes'}`;
@@ -241,10 +272,33 @@ function filterWatched() {
   if (!list.length) {
     grid.innerHTML = '';
     empty.style.display = 'flex';
+    pag.style.display = 'none';
     return;
   }
   empty.style.display = 'none';
-  grid.innerHTML = list.map(m => movieCardHTML(m, 'watched')).join('');
+
+  // Paginação
+  const totalPages = Math.ceil(list.length / WATCHED_PER_PAGE);
+  state._watchedPage = Math.max(0, Math.min(state._watchedPage, totalPages - 1));
+  const page  = state._watchedPage;
+  const slice = list.slice(page * WATCHED_PER_PAGE, (page + 1) * WATCHED_PER_PAGE);
+
+  grid.innerHTML = slice.map(m => movieCardHTML(m, 'watched')).join('');
+
+  if (totalPages > 1) {
+    pag.style.display = 'flex';
+    document.getElementById('page-info').textContent = `${page + 1} / ${totalPages}`;
+    document.getElementById('page-prev').disabled = page === 0;
+    document.getElementById('page-next').disabled = page === totalPages - 1;
+  } else {
+    pag.style.display = 'none';
+  }
+}
+
+function changePage(delta) {
+  state._watchedPage = (state._watchedPage || 0) + delta;
+  filterWatched();
+  document.getElementById('page-watched')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ============================================================
@@ -826,6 +880,7 @@ async function loadData() {
     loadLocal();
   } finally {
     showLoading(false);
+    populateGenreFilter();
     renderHome();
     renderWatchlist();
     renderWatched();
