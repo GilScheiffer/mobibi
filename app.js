@@ -320,19 +320,9 @@ function movieCardHTML(movie, type, readonly = false) {
     scoresHTML = `<div class="movie-card-scores">${s1}${s2}</div>`;
   }
 
-  let actionsHTML = '';
-  if (!readonly) {
-    const safeTitle = esc(movie.title);
-    if (type === 'watchlist') {
-      actionsHTML = `
-        <div class="movie-card-actions">
-          <button class="card-btn card-btn-watched" onclick="event.stopPropagation(); openMarkWatchedByTitle('${safeTitle}')">✅ Assistimos!</button>
-          <button class="card-btn card-btn-delete" onclick="event.stopPropagation(); removeByTitle('${safeTitle}')">🗑️ Remover</button>
-        </div>`;
-    }
-  }
-
-  const clickHandler = type === 'watched' ? `onclick="openWatchedDetail('${esc(movie.title)}')" style="cursor:pointer"` : '';
+  const clickHandler = (type === 'watched' || type === 'watchlist')
+    ? `onclick="openDetail('${esc(movie.title)}','${type}')" style="cursor:pointer"`
+    : '';
 
   return `
     <div class="movie-card" ${clickHandler}>
@@ -585,11 +575,13 @@ async function deleteWatchedByTitle(title) {
   }
 }
 
-function openWatchedDetail(title) {
-  const movie = state.watched.find(m => m.title === title);
+function openDetail(title, type) {
+  const list  = type === 'watched' ? state.watched : state.watchlist;
+  const movie = list.find(m => m.title === title);
   if (!movie) return;
 
   state._detailTitle = title;
+  state._detailType  = type;
 
   const posterEl = document.getElementById('detail-poster');
   const posterPh = document.getElementById('detail-poster-ph');
@@ -604,22 +596,34 @@ function openWatchedDetail(title) {
 
   document.getElementById('detail-title').textContent = movie.title;
   document.getElementById('detail-meta').textContent  = [movie.genre, movie.duration].filter(Boolean).join(' • ');
-  document.getElementById('detail-date').textContent  = movie.date ? `📅 ${movie.date}` : '';
 
-  const myScore  = movie.myScore  != null && movie.myScore  !== '' ? parseFloat(movie.myScore)  : null;
-  const herScore = movie.herScore != null && movie.herScore !== '' ? parseFloat(movie.herScore) : null;
-  const scores   = document.getElementById('detail-scores');
-  scores.innerHTML = `
-    <div class="detail-score-row">
-      <span class="detail-score-name">${cfg.myName}</span>
-      <span class="detail-score-stars">${myScore !== null ? starsHTML(myScore) : '—'}</span>
-      <span class="detail-score-val">${myScore !== null ? myScore.toFixed(1) : ''}</span>
-    </div>
-    <div class="detail-score-row">
-      <span class="detail-score-name">${cfg.herName}</span>
-      <span class="detail-score-stars">${herScore !== null ? starsHTML(herScore) : '—'}</span>
-      <span class="detail-score-val">${herScore !== null ? herScore.toFixed(1) : ''}</span>
-    </div>`;
+  const scores = document.getElementById('detail-scores');
+
+  if (type === 'watched') {
+    document.getElementById('detail-date').textContent = movie.date ? `📅 ${movie.date}` : '';
+    const myScore  = movie.myScore  != null && movie.myScore  !== '' ? parseFloat(movie.myScore)  : null;
+    const herScore = movie.herScore != null && movie.herScore !== '' ? parseFloat(movie.herScore) : null;
+    scores.innerHTML = `
+      <div class="detail-score-row">
+        <span class="detail-score-name">${cfg.myName}</span>
+        <span class="detail-score-stars">${myScore  !== null ? starsHTML(myScore)  : '—'}</span>
+        <span class="detail-score-val">${myScore  !== null ? myScore.toFixed(1)  : ''}</span>
+      </div>
+      <div class="detail-score-row">
+        <span class="detail-score-name">${cfg.herName}</span>
+        <span class="detail-score-stars">${herScore !== null ? starsHTML(herScore) : '—'}</span>
+        <span class="detail-score-val">${herScore !== null ? herScore.toFixed(1) : ''}</span>
+      </div>`;
+    document.getElementById('detail-footer').innerHTML = `
+      <button class="btn-ghost"    onclick="closeModal('movieDetailModal'); deleteWatchedByTitle(state._detailTitle)">🗑️ Remover</button>
+      <button class="btn-primary"  onclick="closeModal('movieDetailModal'); editWatchedByTitle(state._detailTitle)">✏️ Editar</button>`;
+  } else {
+    document.getElementById('detail-date').textContent = movie.addedAt ? `📅 Adicionado em ${movie.addedAt}` : '';
+    scores.innerHTML = '';
+    document.getElementById('detail-footer').innerHTML = `
+      <button class="btn-ghost"    onclick="closeModal('movieDetailModal'); removeByTitle(state._detailTitle)">🗑️ Remover</button>
+      <button class="btn-primary"  onclick="closeModal('movieDetailModal'); openMarkWatchedByTitle(state._detailTitle)">✅ Assistimos!</button>`;
+  }
 
   openModal('movieDetailModal');
 }
