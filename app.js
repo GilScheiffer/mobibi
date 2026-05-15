@@ -157,8 +157,8 @@ function renderHome() {
     tc.style.display = 'none';
   }
 
-  // recent watched (last 6)
-  const recent = [...state.watched].slice(-6).reverse();
+  // recent watched (last 6 by watched date)
+  const recent = [...state.watched].sort((a, b) => dateToNum(b.date) - dateToNum(a.date)).slice(0, 6);
   const grid = document.getElementById('home-recent');
   const block = document.getElementById('recentBlock');
   if (recent.length) {
