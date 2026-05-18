@@ -227,8 +227,8 @@ function filterWatchlist(resetPage = false) {
   });
 
   list.sort((a, b) => {
-    if (sort === 'added-asc') return dateToNum(a.addedAt) - dateToNum(b.addedAt);
-    return dateToNum(b.addedAt) - dateToNum(a.addedAt);
+    if (sort === 'year-asc') return (parseInt(a.year) || 0) - (parseInt(b.year) || 0);
+    return (parseInt(b.year) || 0) - (parseInt(a.year) || 0); // year-desc
   });
 
   if (!list.length) {
@@ -533,7 +533,8 @@ async function confirmAddMovie() {
     return;
   }
 
-  const movie = { title, genre, duration, poster };
+  const year  = state.addingMovie?.year || '';
+  const movie = { title, genre, duration, poster, year };
 
   // Optimistic update
   state.watchlist.push(movie);
