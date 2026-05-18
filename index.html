@@ -131,37 +131,39 @@
     </div>
 
     <div class="draw-stage">
-      <!-- Slot display -->
-      <div class="slot-wrap">
-        <div class="slot-scanline"></div>
-        <div class="slot-text" id="slotText">?</div>
+
+      <!-- Carta flip: frente = mistério, verso = filme sorteado -->
+      <div class="flip-scene">
+        <div class="flip-card" id="flipCard">
+          <!-- Frente: carta misteriosa com título girando -->
+          <div class="flip-front">
+            <div class="flip-front-glow"></div>
+            <div class="flip-ticker" id="slotText">?</div>
+            <div class="flip-hint" id="flipHint">Toque em Sortear</div>
+          </div>
+          <!-- Verso: poster do filme revelado -->
+          <div class="flip-back">
+            <img class="reveal-poster" id="resultPoster" src="" alt="" style="display:none">
+            <div class="reveal-poster-ph" id="resultPosterPh">🎬</div>
+            <div class="reveal-overlay">
+              <h2 class="result-title" id="resultTitle"></h2>
+              <div class="result-tags" id="resultTags"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Big draw button -->
+      <!-- Botão sortear (pill) -->
       <button class="draw-btn" id="drawBtn" onclick="drawMovie()">
-        <div class="draw-ring" id="drawRing"></div>
-        <div class="draw-content">
-          <div class="draw-icon">🎬</div>
-          <div class="draw-label" id="drawLabel">SORTEAR</div>
-        </div>
+        <span class="draw-shimmer"></span>
+        <span class="draw-icon">🎬</span>
+        <span class="draw-label" id="drawLabel">SORTEAR</span>
       </button>
 
-      <!-- Result card -->
-      <div class="draw-result" id="drawResult" style="display:none">
-        <div class="result-card">
-          <div class="result-poster-wrap">
-            <img class="result-poster" id="resultPoster" src="" alt="" style="display:none">
-            <div class="result-poster-ph" id="resultPosterPh">🎬</div>
-          </div>
-          <div class="result-info">
-            <h2 class="result-title" id="resultTitle"></h2>
-            <div class="result-tags" id="resultTags"></div>
-          </div>
-        </div>
-        <div class="result-actions">
-          <button class="btn-secondary" onclick="drawMovie()">🔄 Sortear de Novo</button>
-          <button class="btn-primary" onclick="acceptDraw()">✅ Escolhemos Este!</button>
-        </div>
+      <!-- Ações pós-sorteio -->
+      <div class="result-actions" id="drawResult" style="display:none">
+        <button class="btn-secondary" onclick="drawMovie()">🔄 Sortear de Novo</button>
+        <button class="btn-primary" onclick="acceptDraw()">✅ Escolhemos Este!</button>
       </div>
 
       <div class="draw-empty" id="drawEmpty" style="display:none">
@@ -181,20 +183,22 @@
     </div>
 
     <div class="filter-row">
-      <input class="search-input" type="text" id="watchlistSearch" placeholder="🔍 Buscar filme..." oninput="filterWatchlist()">
-      <select class="sort-select" id="watchlistSort" onchange="filterWatchlist()">
-        <option value="year-desc">Mais recentes</option>
-        <option value="year-asc">Mais antigos</option>
-      </select>
-      <select class="sort-select" id="watchlistGenre" onchange="filterWatchlist()">
-        <option value="">Todos os gêneros</option>
-      </select>
-      <select class="sort-select" id="watchlistDuration" onchange="filterWatchlist()">
-        <option value="">Qualquer duração</option>
-        <option value="short">Até 1h30</option>
-        <option value="mid">1h30 – 2h</option>
-        <option value="long">Mais de 2h</option>
-      </select>
+      <input class="search-input" type="text" id="watchlistSearch" placeholder="Buscar filme..." oninput="filterWatchlist()">
+      <div class="filter-chips">
+        <select class="filter-chip" id="watchlistSort" onchange="filterWatchlist()">
+          <option value="year-desc">Mais recentes</option>
+          <option value="year-asc">Mais antigos</option>
+        </select>
+        <select class="filter-chip" id="watchlistGenre" onchange="filterWatchlist()">
+          <option value="">Todos os gêneros</option>
+        </select>
+        <select class="filter-chip" id="watchlistDuration" onchange="filterWatchlist()">
+          <option value="">Qualquer duração</option>
+          <option value="short">Até 1h30</option>
+          <option value="mid">1h30 – 2h</option>
+          <option value="long">Mais de 2h</option>
+        </select>
+      </div>
     </div>
 
     <div class="movies-grid" id="watchlist-grid"></div>
@@ -227,17 +231,21 @@
     </div>
 
     <div class="filter-row">
-      <input class="search-input" type="text" id="watchedSearch" placeholder="🔍 Buscar filme..." oninput="filterWatched()">
-      <select class="sort-select" id="watchedSort" onchange="filterWatched()">
-        <option value="date-desc">Últimos Assistidos</option>
-        <option value="date-asc">Primeiros Assistidos</option>
-        <option value="myscore-desc">Maior nota Gil</option>
-        <option value="herscore-desc">Maior nota Bia</option>
-        <option value="avg-desc">Maior média</option>
-      </select>
-      <select class="sort-select" id="watchedGenre" onchange="filterWatched()">
-        <option value="">Todos os gêneros</option>
-      </select>
+      <input class="search-input" type="text" id="watchedSearch" placeholder="Buscar filme..." oninput="filterWatched()">
+      <div class="filter-chips">
+        <select class="filter-chip" id="watchedSort" onchange="filterWatched()">
+          <option value="date-desc">Últimos Assistidos</option>
+          <option value="date-asc">Primeiros Assistidos</option>
+          <option value="myscore-desc">Maior nota Gil</option>
+          <option value="herscore-desc">Maior nota Bia</option>
+          <option value="avg-desc">Maior média</option>
+          <option value="release-desc">Lançamento mais recente</option>
+          <option value="release-asc">Lançamento mais antigo</option>
+        </select>
+        <select class="filter-chip" id="watchedGenre" onchange="filterWatched()">
+          <option value="">Todos os gêneros</option>
+        </select>
+      </div>
     </div>
 
     <div class="movies-grid" id="watched-grid"></div>
@@ -377,16 +385,20 @@
 <!-- Movie Detail Modal (assistidos) -->
 <div class="modal-overlay" id="movieDetailModal" onclick="closeModalOutside(event,'movieDetailModal')">
   <div class="modal modal-detail">
+    <div class="detail-bg-blur" id="detail-bg-blur"></div>
     <button class="modal-close" onclick="closeModal('movieDetailModal')">✕</button>
-    <div class="detail-poster-wrap">
-      <img class="detail-poster" id="detail-poster" src="" alt="" style="display:none" onerror="this.style.display='none'; document.getElementById('detail-poster-ph').style.display='flex'">
-      <div class="detail-poster-ph" id="detail-poster-ph">🎬</div>
-    </div>
-    <div class="detail-body">
-      <h2 class="detail-title" id="detail-title"></h2>
-      <div class="detail-meta" id="detail-meta"></div>
-      <div class="detail-date" id="detail-date"></div>
-      <div class="detail-scores" id="detail-scores"></div>
+    <div class="detail-layout">
+      <div class="detail-poster-wrap">
+        <img class="detail-poster" id="detail-poster" src="" alt="" style="display:none" onerror="this.style.display='none'; document.getElementById('detail-poster-ph').style.display='flex'">
+        <div class="detail-poster-ph" id="detail-poster-ph">🎬</div>
+      </div>
+      <div class="detail-body">
+        <h2 class="detail-title" id="detail-title"></h2>
+        <div class="detail-meta" id="detail-meta"></div>
+        <div class="detail-date" id="detail-date"></div>
+        <div class="detail-streaming" id="detail-streaming"></div>
+        <div class="detail-scores" id="detail-scores"></div>
+      </div>
     </div>
     <div class="modal-footer detail-footer" id="detail-footer"></div>
   </div>

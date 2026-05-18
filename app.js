@@ -94,6 +94,21 @@ const TMDB = {
     const h = Math.floor(min / 60);
     const m = min % 60;
     return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
+  },
+
+  async getProviders(id) {
+    if (!cfg.tmdbKey || !id) return null;
+    try {
+      const url = `${this.BASE}/movie/${id}/watch/providers?api_key=${cfg.tmdbKey}`;
+      const res  = await fetch(url);
+      const data = await res.json();
+      const br   = data.results?.BR;
+      if (!br) return null;
+      return {
+        s: (br.flatrate || []).slice(0, 6).map(p => ({ n: p.provider_name, l: p.logo_path })),
+        r: (br.rent     || []).slice(0, 6).map(p => ({ n: p.provider_name, l: p.logo_path })),
+      };
+    } catch { return null; }
   }
 };
 
@@ -315,14 +330,16 @@ function filterWatched(resetPage = false) {
   });
 
   list.sort((a, b) => {
-    if (sort === 'date-asc')      return dateToNum(a.date) - dateToNum(b.date);
-    if (sort === 'myscore-desc')  return parseFloat(b.myScore||0) - parseFloat(a.myScore||0);
-    if (sort === 'herscore-desc') return parseFloat(b.herScore||0) - parseFloat(a.herScore||0);
+    if (sort === 'date-asc')       return dateToNum(a.date) - dateToNum(b.date);
+    if (sort === 'myscore-desc')   return parseFloat(b.myScore||0) - parseFloat(a.myScore||0);
+    if (sort === 'herscore-desc')  return parseFloat(b.herScore||0) - parseFloat(a.herScore||0);
     if (sort === 'avg-desc') {
       const avgA = (parseFloat(a.myScore||0) + parseFloat(a.herScore||0)) / 2;
       const avgB = (parseFloat(b.myScore||0) + parseFloat(b.herScore||0)) / 2;
       return avgB - avgA;
     }
+    if (sort === 'release-desc')   return (b.releaseDate||'').localeCompare(a.releaseDate||'');
+    if (sort === 'release-asc')    return (a.releaseDate||'').localeCompare(b.releaseDate||'');
     return dateToNum(b.date) - dateToNum(a.date); // date-desc
   });
 
@@ -478,17 +495,81 @@ async function selectTMDBByIndex(idx) {
   if (movie) await selectTMDBResult(movie);
 }
 
+// Retorna HTML dos logos de streaming com tooltip ao clicar
+function streamingHTML(streaming, size = 28) {
+  if (!streaming) return '';
+  let data;
+  try { data = JSON.parse(streaming); } catch { return ''; }
+  const BASE = 'https://image.tmdb.org/t/p/w45';
+
+  function logoBtn(p, type) {
+    const label = type === 'rent'
+      ? `${p.n} — aluguel`
+      : `${p.n} — incluído`;
+    return `<button class="provider-btn provider-btn-${type}" onclick="showProviderHint(this,'${esc(label)}')" title="${esc(label)}">
+      <img class="provider-logo" src="${BASE}${p.l}" alt="${esc(p.n)}" width="${size}" height="${size}">
+      ${type === 'rent' ? '<span class="provider-badge">R$</span>' : ''}
+    </button>`;
+  }
+
+  const sItems = (data.s || []).map(p => logoBtn(p, 'stream')).join('');
+  const rItems = (data.r || []).map(p => logoBtn(p, 'rent')).join('');
+  if (!sItems && !rItems) return '';
+
+  let html = '<div class="provider-row">';
+  if (sItems) html += `<span class="provider-group">${sItems}</span>`;
+  if (sItems && rItems) html += '<span class="provider-divider">|</span>';
+  if (rItems) html += `<span class="provider-group">${rItems}</span>`;
+  html += '</div>';
+  return html;
+}
+
+function showProviderHint(btn, label) {
+  document.querySelectorAll('.provider-hint').forEach(h => h.remove());
+
+  const hint = document.createElement('div');
+  hint.className = 'provider-hint';
+  hint.textContent = label;
+
+  // Anexa ao body para não ser clipado pelo overflow do modal
+  document.body.appendChild(hint);
+
+  // Posiciona acima do botão, centralizado, depois corrige se sair da tela
+  const btnRect  = btn.getBoundingClientRect();
+  const hintW    = hint.offsetWidth;
+  const margin   = 8;
+
+  let left = btnRect.left + btnRect.width / 2 - hintW / 2;
+  let top  = btnRect.top - hint.offsetHeight - margin + window.scrollY;
+
+  // Clamp horizontal dentro da viewport
+  left = Math.max(margin, Math.min(left, window.innerWidth - hintW - margin));
+
+  hint.style.position = 'fixed';
+  hint.style.left     = left + 'px';
+  hint.style.top      = (btnRect.top - hint.offsetHeight - margin) + 'px';
+  hint.style.transform = 'none';
+
+  setTimeout(() => hint.remove(), 2500);
+  const close = (e) => { if (!btn.contains(e.target)) { hint.remove(); document.removeEventListener('click', close); } };
+  setTimeout(() => document.addEventListener('click', close), 10);
+}
+
 async function selectTMDBResult(movie) {
 
-  // Fetch details for genre + duration
+  // Fetch details (genre + duration) e providers em paralelo
   try {
-    const details = await TMDB.getDetails(movie.id);
+    const [details, providers] = await Promise.all([
+      TMDB.getDetails(movie.id),
+      TMDB.getProviders(movie.id),
+    ]);
     if (details) {
       const genres = details.genres?.map(g => g.name).slice(0, 2).join(', ') || '';
       const duration = TMDB.minutesToDuration(details.runtime);
       movie.genre    = genres;
       movie.duration = duration;
     }
+    movie.streaming = providers ? JSON.stringify(providers) : '';
   } catch { /* Fail silently, user can enter manually */ }
 
   // Populate form
@@ -537,7 +618,8 @@ async function confirmAddMovie() {
   }
 
   const releaseDate = state.addingMovie?.releaseDate || '';
-  const movie = { title, genre, duration, poster, releaseDate };
+  const streaming   = state.addingMovie?.streaming   || '';
+  const movie = { title, genre, duration, poster, releaseDate, streaming };
 
   // Optimistic update
   state.watchlist.push(movie);
@@ -645,13 +727,16 @@ function openDetail(title, type) {
 
   const posterEl = document.getElementById('detail-poster');
   const posterPh = document.getElementById('detail-poster-ph');
+  const bgBlur   = document.getElementById('detail-bg-blur');
   if (movie.poster) {
     posterEl.src = movie.poster;
     posterEl.style.display = 'block';
     posterPh.style.display = 'none';
+    if (bgBlur) bgBlur.style.backgroundImage = `url(${movie.poster})`;
   } else {
     posterEl.style.display = 'none';
     posterPh.style.display = 'flex';
+    if (bgBlur) bgBlur.style.backgroundImage = 'none';
   }
 
   document.getElementById('detail-title').textContent = movie.title;
@@ -659,8 +744,17 @@ function openDetail(title, type) {
 
   const scores = document.getElementById('detail-scores');
 
+  const streamEl = document.getElementById('detail-streaming');
+
   if (type === 'watched') {
-    document.getElementById('detail-date').textContent = movie.date ? `📅 ${movie.date}` : '';
+    const rd = movie.releaseDate;
+    const relStr = rd && rd.length === 10
+      ? `🎬 Lançamento: ${rd.slice(8)}/${rd.slice(5,7)}/${rd.slice(0,4)}`
+      : '';
+    const dateEl = document.getElementById('detail-date');
+    const parts = [movie.date ? `📅 Assistido em: ${movie.date}` : '', relStr].filter(Boolean);
+    dateEl.innerHTML = parts.join('<br>');
+    if (streamEl) streamEl.innerHTML = '';
     const myScore  = movie.myScore  != null && movie.myScore  !== '' ? parseFloat(movie.myScore)  : null;
     const herScore = movie.herScore != null && movie.herScore !== '' ? parseFloat(movie.herScore) : null;
     scores.innerHTML = `
@@ -683,6 +777,7 @@ function openDetail(title, type) {
       ? `🎬 Lançamento: ${rd.length === 10 ? rd.slice(8)+'/'+rd.slice(5,7)+'/'+rd.slice(0,4) : rd}`
       : '';
     document.getElementById('detail-date').textContent = relStr;
+    if (streamEl) streamEl.innerHTML = streamingHTML(movie.streaming || '', 40);
     scores.innerHTML = '';
     document.getElementById('detail-footer').innerHTML = `
       <button class="btn-ghost"    onclick="closeModal('movieDetailModal'); removeByTitle(state._detailTitle)">🗑️ Remover</button>
@@ -785,7 +880,7 @@ async function confirmMarkWatched() {
     return;
   }
 
-  const watchedEntry = { ...movie, date, myScore, herScore };
+  const watchedEntry = { ...movie, date, myScore, herScore, releaseDate: movie.releaseDate || '' };
 
   // Optimistic update
   state.watched.push(watchedEntry);
@@ -812,11 +907,13 @@ async function confirmMarkWatched() {
 // DRAW
 // ============================================================
 function drawMovie() {
-  const btn       = document.getElementById('drawBtn');
-  const slotText  = document.getElementById('slotText');
-  const resultEl  = document.getElementById('drawResult');
-  const emptyEl   = document.getElementById('drawEmpty');
-  const label     = document.getElementById('drawLabel');
+  const btn      = document.getElementById('drawBtn');
+  const slotText = document.getElementById('slotText');
+  const resultEl = document.getElementById('drawResult');
+  const emptyEl  = document.getElementById('drawEmpty');
+  const label    = document.getElementById('drawLabel');
+  const flipCard = document.getElementById('flipCard');
+  const flipHint = document.getElementById('flipHint');
 
   if (!state.watchlist.length) {
     emptyEl.style.display = 'block';
@@ -824,15 +921,19 @@ function drawMovie() {
     return;
   }
 
+  // Se a carta já está virada, desvira antes de sortear de novo
+  const wasFlipped = flipCard?.classList.contains('flipped');
+  if (wasFlipped) flipCard.classList.remove('flipped');
+
   emptyEl.style.display = 'none';
   resultEl.style.display = 'none';
   slotText.classList.remove('slot-final');
+  if (flipHint) flipHint.style.display = 'block';
 
   btn.disabled = true;
   btn.classList.add('spinning');
   label.textContent = '...';
 
-  // Pick winner
   const winner = state.watchlist[Math.floor(Math.random() * state.watchlist.length)];
   state.currentDraw = winner;
 
@@ -840,39 +941,41 @@ function drawMovie() {
   let iteration = 0;
   const maxIterations = 22;
 
-  function spin() {
-    if (iteration >= maxIterations) {
-      slotText.textContent = winner.title;
-      slotText.classList.add('slot-final');
+  // pequeno delay se a carta precisou desviar
+  setTimeout(function startSpin() {
+    function spin() {
+      if (iteration >= maxIterations) {
+        slotText.textContent = winner.title;
+        slotText.classList.add('slot-final');
+        if (flipHint) flipHint.style.display = 'none';
 
-      setTimeout(() => {
-        showDrawResult(winner);
-        btn.disabled = false;
-        btn.classList.remove('spinning');
-        label.textContent = 'SORTEAR';
-      }, 400);
-      return;
+        setTimeout(() => {
+          showDrawResult(winner);
+          btn.disabled = false;
+          btn.classList.remove('spinning');
+          label.textContent = 'SORTEAR';
+        }, 350);
+        return;
+      }
+      const randomTitle = titles[Math.floor(Math.random() * titles.length)];
+      slotText.textContent = randomTitle;
+      const delay = 60 + Math.pow(iteration / maxIterations, 2.5) * 600;
+      iteration++;
+      setTimeout(spin, delay);
     }
-
-    const randomTitle = titles[Math.floor(Math.random() * titles.length)];
-    slotText.textContent = randomTitle;
-
-    const progress = iteration / maxIterations;
-    const delay = 60 + Math.pow(progress, 2.5) * 600;
-    iteration++;
-    setTimeout(spin, delay);
-  }
-
-  spin();
+    spin();
+  }, wasFlipped ? 450 : 0);
 }
 
 function showDrawResult(movie) {
-  const resultEl  = document.getElementById('drawResult');
-  const poster    = document.getElementById('resultPoster');
-  const posterPh  = document.getElementById('resultPosterPh');
-  const titleEl   = document.getElementById('resultTitle');
-  const tagsEl    = document.getElementById('resultTags');
+  const flipCard = document.getElementById('flipCard');
+  const poster   = document.getElementById('resultPoster');
+  const posterPh = document.getElementById('resultPosterPh');
+  const titleEl  = document.getElementById('resultTitle');
+  const tagsEl   = document.getElementById('resultTags');
+  const resultEl = document.getElementById('drawResult');
 
+  // Preenche o verso da carta antes de virar
   titleEl.textContent = movie.title;
 
   if (movie.poster) {
@@ -884,13 +987,25 @@ function showDrawResult(movie) {
     posterPh.style.display = 'flex';
   }
 
-  const tags = [movie.genre, movie.duration].filter(Boolean);
+  const rd = movie.releaseDate;
+  const rdStr = rd && rd.length === 10
+    ? `🎬 ${rd.slice(8)}/${rd.slice(5,7)}/${rd.slice(0,4)}`
+    : '';
+  const tags = [movie.duration, rdStr].filter(Boolean);
   tagsEl.innerHTML = tags.map(t => `<span class="tag">${esc(t)}</span>`).join('');
 
-  resultEl.style.display = 'block';
-  resultEl.classList.remove('animate-in');
-  void resultEl.offsetWidth;
-  resultEl.classList.add('animate-in');
+  // Streaming no resultado do sorteio
+  let streamRow = document.getElementById('draw-streaming');
+  if (!streamRow) {
+    streamRow = document.createElement('div');
+    streamRow.id = 'draw-streaming';
+    tagsEl.parentNode.insertBefore(streamRow, tagsEl.nextSibling);
+  }
+  streamRow.innerHTML = streamingHTML(movie.streaming || '', 36);
+
+  // Vira a carta e mostra as ações
+  if (flipCard) flipCard.classList.add('flipped');
+  setTimeout(() => { resultEl.style.display = 'flex'; }, 400);
 }
 
 function acceptDraw() {
