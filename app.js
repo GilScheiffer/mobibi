@@ -227,8 +227,10 @@ function filterWatchlist(resetPage = false) {
   });
 
   list.sort((a, b) => {
-    if (sort === 'year-asc') return (parseInt(a.year) || 0) - (parseInt(b.year) || 0);
-    return (parseInt(b.year) || 0) - (parseInt(a.year) || 0); // year-desc
+    const da = a.releaseDate || '';
+    const db = b.releaseDate || '';
+    if (sort === 'year-asc') return da.localeCompare(db);
+    return db.localeCompare(da); // year-desc
   });
 
   if (!list.length) {
@@ -451,6 +453,7 @@ function renderTMDBResults(results) {
     id: m.id,
     title: m.title,
     poster: TMDB.poster(m.poster_path) || '',
+    releaseDate: m.release_date || '',
     year: m.release_date ? m.release_date.slice(0, 4) : '',
     genre: ''
   }));
@@ -533,8 +536,8 @@ async function confirmAddMovie() {
     return;
   }
 
-  const year  = state.addingMovie?.year || '';
-  const movie = { title, genre, duration, poster, year };
+  const releaseDate = state.addingMovie?.releaseDate || '';
+  const movie = { title, genre, duration, poster, releaseDate };
 
   // Optimistic update
   state.watchlist.push(movie);
