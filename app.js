@@ -190,9 +190,7 @@ function populateWatchlistGenreFilter() {
   if (!sel) return;
   const current = sel.value;
   const genres = new Set();
-  state.watchlist.forEach(m => {
-    (m.genre || '').split(',').forEach(g => { const t = g.trim(); if (t) genres.add(t); });
-  });
+  state.watchlist.forEach(m => splitGenres(m.genre).forEach(g => genres.add(g)));
   sel.innerHTML = '<option value="">Todos os gêneros</option>' +
     [...genres].sort().map(g => `<option value="${esc(g)}"${current === g ? ' selected' : ''}>${esc(g)}</option>`).join('');
 }
@@ -215,7 +213,7 @@ function filterWatchlist(resetPage = false) {
 
   let list = state.watchlist.filter(m => {
     if (!m.title.toLowerCase().includes(query)) return false;
-    if (genre && !(m.genre || '').split(',').map(g => g.trim()).includes(genre)) return false;
+    if (genre && !splitGenres(m.genre).includes(genre)) return false;
     if (duration) {
       const mins = durationToMinutes(m.duration);
       if (mins === null) return false;
@@ -281,14 +279,16 @@ function dateToNum(str) {
   return 0;
 }
 
+function splitGenres(str) {
+  return (str || '').split(/[,;/]/).map(g => g.trim()).filter(Boolean);
+}
+
 function populateGenreFilter() {
   const sel = document.getElementById('watchedGenre');
   if (!sel) return;
   const current = sel.value;
   const genres = new Set();
-  state.watched.forEach(m => {
-    (m.genre || '').split(',').forEach(g => { const t = g.trim(); if (t) genres.add(t); });
-  });
+  state.watched.forEach(m => splitGenres(m.genre).forEach(g => genres.add(g)));
   const sorted = [...genres].sort();
   sel.innerHTML = '<option value="">Todos os gêneros</option>' +
     sorted.map(g => `<option value="${esc(g)}"${current === g ? ' selected' : ''}>${esc(g)}</option>`).join('');
@@ -310,7 +310,7 @@ function filterWatched(resetPage = false) {
 
   let list = state.watched.filter(m => {
     if (!m.title.toLowerCase().includes(query)) return false;
-    if (genre && !(m.genre || '').split(',').map(g => g.trim()).includes(genre)) return false;
+    if (genre && !splitGenres(m.genre).includes(genre)) return false;
     return true;
   });
 
