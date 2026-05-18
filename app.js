@@ -678,7 +678,11 @@ function openDetail(title, type) {
       <button class="btn-ghost"    onclick="closeModal('movieDetailModal'); deleteWatchedByTitle(state._detailTitle)">🗑️ Remover</button>
       <button class="btn-primary"  onclick="closeModal('movieDetailModal'); editWatchedByTitle(state._detailTitle)">✏️ Editar</button>`;
   } else {
-    document.getElementById('detail-date').textContent = movie.addedAt ? `📅 Adicionado em ${movie.addedAt}` : '';
+    const rd = movie.releaseDate;
+    const relStr = rd
+      ? `🎬 Lançamento: ${rd.length === 10 ? rd.slice(8)+'/'+rd.slice(5,7)+'/'+rd.slice(0,4) : rd}`
+      : '';
+    document.getElementById('detail-date').textContent = relStr;
     scores.innerHTML = '';
     document.getElementById('detail-footer').innerHTML = `
       <button class="btn-ghost"    onclick="closeModal('movieDetailModal'); removeByTitle(state._detailTitle)">🗑️ Remover</button>
