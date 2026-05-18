@@ -185,8 +185,15 @@
       <select class="sort-select" id="watchlistSort" onchange="filterWatchlist()">
         <option value="added-desc">Mais recentes</option>
         <option value="added-asc">Mais antigos</option>
-        <option value="title-asc">A → Z</option>
-        <option value="title-desc">Z → A</option>
+      </select>
+      <select class="sort-select" id="watchlistGenre" onchange="filterWatchlist()">
+        <option value="">Todos os gêneros</option>
+      </select>
+      <select class="sort-select" id="watchlistDuration" onchange="filterWatchlist()">
+        <option value="">Qualquer duração</option>
+        <option value="short">Até 1h30</option>
+        <option value="mid">1h30 – 2h</option>
+        <option value="long">Mais de 2h</option>
       </select>
     </div>
 

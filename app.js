@@ -178,27 +178,57 @@ function renderWatchlist() {
 
 const WATCHLIST_PER_PAGE = 18;
 
+function durationToMinutes(str) {
+  if (!str) return null;
+  const p = str.split(':').map(Number);
+  if (p.length >= 2 && !isNaN(p[0]) && !isNaN(p[1])) return p[0] * 60 + p[1];
+  return null;
+}
+
+function populateWatchlistGenreFilter() {
+  const sel = document.getElementById('watchlistGenre');
+  if (!sel) return;
+  const current = sel.value;
+  const genres = new Set();
+  state.watchlist.forEach(m => {
+    (m.genre || '').split(',').forEach(g => { const t = g.trim(); if (t) genres.add(t); });
+  });
+  sel.innerHTML = '<option value="">Todos os gêneros</option>' +
+    [...genres].sort().map(g => `<option value="${esc(g)}"${current === g ? ' selected' : ''}>${esc(g)}</option>`).join('');
+}
+
 function filterWatchlist(resetPage = false) {
   if (resetPage) state._watchlistPage = 0;
   if (!state._watchlistPage) state._watchlistPage = 0;
 
-  const query   = (document.getElementById('watchlistSearch')?.value || '').toLowerCase();
-  const sort    = document.getElementById('watchlistSort')?.value || 'added-desc';
-  const grid    = document.getElementById('watchlist-grid');
-  const empty   = document.getElementById('watchlist-empty');
-  const count   = document.getElementById('watchlist-count');
-  const pag     = document.getElementById('watchlist-pagination');
+  const query    = (document.getElementById('watchlistSearch')?.value || '').toLowerCase();
+  const sort     = document.getElementById('watchlistSort')?.value || 'added-desc';
+  const genre    = document.getElementById('watchlistGenre')?.value || '';
+  const duration = document.getElementById('watchlistDuration')?.value || '';
+  const grid     = document.getElementById('watchlist-grid');
+  const empty    = document.getElementById('watchlist-empty');
+  const count    = document.getElementById('watchlist-count');
+  const pag      = document.getElementById('watchlist-pagination');
 
   document.getElementById('watchlistLoading').style.display = 'none';
   count.textContent = `${state.watchlist.length} ${state.watchlist.length === 1 ? 'filme' : 'filmes'}`;
 
-  let list = state.watchlist.filter(m => m.title.toLowerCase().includes(query));
+  let list = state.watchlist.filter(m => {
+    if (!m.title.toLowerCase().includes(query)) return false;
+    if (genre && !(m.genre || '').split(',').map(g => g.trim()).includes(genre)) return false;
+    if (duration) {
+      const mins = durationToMinutes(m.duration);
+      if (mins === null) return false;
+      if (duration === 'short' && mins >= 90)  return false;
+      if (duration === 'mid'   && (mins < 90 || mins > 120)) return false;
+      if (duration === 'long'  && mins <= 120) return false;
+    }
+    return true;
+  });
 
   list.sort((a, b) => {
-    if (sort === 'added-asc')  return dateToNum(a.addedAt) - dateToNum(b.addedAt);
-    if (sort === 'title-asc')  return a.title.localeCompare(b.title);
-    if (sort === 'title-desc') return b.title.localeCompare(a.title);
-    return dateToNum(b.addedAt) - dateToNum(a.addedAt); // added-desc
+    if (sort === 'added-asc') return dateToNum(a.addedAt) - dateToNum(b.addedAt);
+    return dateToNum(b.addedAt) - dateToNum(a.addedAt);
   });
 
   if (!list.length) {
@@ -911,6 +941,7 @@ async function loadData() {
   } finally {
     showLoading(false);
     populateGenreFilter();
+    populateWatchlistGenreFilter();
     renderHome();
     renderWatchlist();
     renderWatched();
