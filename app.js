@@ -9,7 +9,7 @@
 // ============================================================
 
 const NAMES      = { my: 'Gil', her: 'Bia' };
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyC4sUsrqYAt8BFeWTh6-AgvOGbaiUceSDNibAgZ7PLGbfj9LgYu9MgAA14kSN2DdL6/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwFYPqq4nNg6mzJcC-TyQKAZrp3r-G9uZJa5AyAJCsKY5PhIJdf7AS_vVEf5bBuU56C/exec';
 const TMDB_KEY   = 'ea483053614c87cac1dcd2a3a78cd22d';
 
 const cfg = {
