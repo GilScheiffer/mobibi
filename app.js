@@ -61,6 +61,8 @@ const API = {
   async removeFromList(t)   { return this.post({ action: 'removeFromWatchlist', title: t }); },
   async updateWatched(m)    { return this.post({ action: 'updateWatched', ...m }); },
   async removeFromWatched(t){ return this.post({ action: 'removeFromWatched', title: t }); },
+  async getTonightPick()    { return this.get('getTonightPick'); },
+  async setTonightPick(movie){ return this.post({ action: 'setTonightPick', movie: movie || null }); },
 };
 
 // ============================================================
@@ -885,7 +887,10 @@ async function confirmMarkWatched() {
   // Optimistic update
   state.watched.push(watchedEntry);
   state.watchlist = state.watchlist.filter(m => m.title !== movie.title);
-  if (state.tonightPick?.title === movie.title) state.tonightPick = null;
+  if (state.tonightPick?.title === movie.title) {
+    state.tonightPick = null;
+    if (cfg.scriptUrl) API.setTonightPick(null).catch(() => {});
+  }
 
   closeModal('watchedModal');
   showToast(`"${movie.title}" marcado como assistido! ⭐`, 'success');
@@ -1013,11 +1018,13 @@ function acceptDraw() {
   state.tonightPick = state.currentDraw;
   showToast(`"${state.currentDraw.title}" escolhido pra hoje! 🎬`, 'success');
   navigate('home');
+  if (cfg.scriptUrl) API.setTonightPick(state.currentDraw).catch(() => {});
 }
 
 function clearTonightPick() {
   state.tonightPick = null;
   document.getElementById('tonightCard').style.display = 'none';
+  if (cfg.scriptUrl) API.setTonightPick(null).catch(() => {});
 }
 
 // ============================================================
@@ -1052,12 +1059,14 @@ async function loadData() {
   showLoading(true);
 
   try {
-    const [watchlist, watched] = await Promise.all([
+    const [watchlist, watched, tonightData] = await Promise.all([
       API.getWatchlist(),
-      API.getWatched()
+      API.getWatched(),
+      API.getTonightPick(),
     ]);
-    state.watchlist = watchlist;
-    state.watched   = watched;
+    state.watchlist   = watchlist;
+    state.watched     = watched;
+    state.tonightPick = tonightData?.movie || null;
   } catch (err) {
     showToast('Erro ao carregar dados. Verifique a URL do Apps Script.', 'error');
     loadLocal();

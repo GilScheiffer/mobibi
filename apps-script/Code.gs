@@ -18,6 +18,7 @@
 // ── Nomes das abas ───────────────────────────────────────────
 const WATCHED_SHEET   = 'Filmes 2026';
 const WATCHLIST_SHEET = 'Lista de filmes para assistir';
+const CONFIG_SHEET    = 'Config';
 
 // ── Índices das colunas (após a migração) ────────────────────
 // Filmes 2026:  A=Filmes B=Gênero C=Duração D=Data E=Nota(original) F=Nota Bia G=Nota Gil H=Poster
@@ -30,9 +31,10 @@ function doGet(e) {
   const action = e.parameter.action;
   let result;
   try {
-    if      (action === 'getWatched')   result = getWatchedMovies();
-    else if (action === 'getWatchlist') result = getWatchlist();
-    else                                result = { error: 'Ação desconhecida: ' + action };
+    if      (action === 'getWatched')      result = getWatchedMovies();
+    else if (action === 'getWatchlist')    result = getWatchlist();
+    else if (action === 'getTonightPick')  result = getTonightPick();
+    else                                   result = { error: 'Ação desconhecida: ' + action };
   } catch (err) {
     result = { error: err.toString() };
   }
@@ -54,6 +56,7 @@ function doPost(e) {
     else if (action === 'removeFromWatchlist') result = removeFromWatchlist(data);
     else if (action === 'updateWatched')       result = updateWatched(data);
     else if (action === 'removeFromWatched')   result = removeFromWatched(data);
+    else if (action === 'setTonightPick')      result = setTonightPick(data);
     else                                       result = { error: 'Ação desconhecida: ' + action };
   } catch (err) {
     result = { error: err.toString() };
@@ -135,6 +138,56 @@ function getWatchlist() {
     });
   }
   return { movies };
+}
+
+// ════════════════════════════════════════════════════════════
+// TONIGHT PICK — leitura e escrita
+// ════════════════════════════════════════════════════════════
+function getTonightPick() {
+  const val = _getConfig('tonightPick');
+  if (!val) return { movie: null };
+  try { return { movie: JSON.parse(val) }; }
+  catch { return { movie: null }; }
+}
+
+function setTonightPick(data) {
+  const movie = data.movie || null;
+  _setConfig('tonightPick', movie ? JSON.stringify(movie) : '');
+  return { success: true };
+}
+
+// ── Config helpers ───────────────────────────────────────────
+function _getConfigSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(CONFIG_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG_SHEET);
+    sheet.appendRow(['Chave', 'Valor']);
+    sheet.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground('#ffe599');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function _getConfig(key) {
+  var sheet = _getConfigSheet();
+  var rows  = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === key) return String(rows[i][1]);
+  }
+  return null;
+}
+
+function _setConfig(key, value) {
+  var sheet = _getConfigSheet();
+  var rows  = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === key) {
+      sheet.getRange(i + 1, 2).setValue(value);
+      return;
+    }
+  }
+  sheet.appendRow([key, value]);
 }
 
 // ════════════════════════════════════════════════════════════
