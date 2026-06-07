@@ -607,6 +607,7 @@ body::after {
 .flip-scene {
   width: min(360px, 88vw);
   perspective: 1200px;
+  -webkit-perspective: 1200px;
 }
 
 .flip-card {
@@ -614,11 +615,21 @@ body::after {
   aspect-ratio: 2/3;
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 0.75s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-transform-style: preserve-3d;
+  transition: transform 0.75s cubic-bezier(0.4, 0, 0.2, 1),
+              -webkit-transform 0.75s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: var(--radius-lg);
 }
 
-.flip-card.flipped { transform: rotateY(180deg); }
+.flip-card.flipped {
+  transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
+}
+
+/* Fallback: esconde a frente explicitamente ao virar (iOS backface-visibility workaround) */
+.flip-card.flipped .flip-front {
+  visibility: hidden;
+}
 
 .flip-front,
 .flip-back {
@@ -683,6 +694,7 @@ body::after {
 /* Verso — poster revelado */
 .flip-back {
   transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
   background: #0a0a10;
 }
 
@@ -1734,7 +1746,7 @@ body::after {
     gap: 12px;
   }
 
-  .flip-scene { width: min(320px, 88vw); }
+  .flip-scene { width: min(320px, 88vw); -webkit-perspective: 1200px; }
 
   .modal { max-height: 95vh; }
 

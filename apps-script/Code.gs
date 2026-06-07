@@ -82,14 +82,32 @@ function getWatchedMovies() {
       genre:       String(r[1] || '').trim(),
       duration:    display[i][2] || '',
       date:        formatDate(r[3]),
-      herScore:    r[5] !== '' && r[5] != null ? String(r[5]) : '',
-      myScore:     r[6] !== '' && r[6] != null ? String(r[6]) : '',
+      herScore:    _toScoreStr(r[5]),
+      myScore:     _toScoreStr(r[6]),
       poster:      String(r[7] || '').trim(),
       releaseDate: _formatReleaseDate(r[8]),  // col I
     });
   }
   movies.reverse();
   return { movies };
+}
+
+// Converte valor de célula de nota para string numérica.
+// Sheets às vezes interpreta scores como datas (célula formatada como Date).
+// Tenta recuperar o serial (= score real) se estiver no intervalo 0–10.
+function _toScoreStr(val) {
+  if (val === '' || val == null) return '';
+  if (val instanceof Date) {
+    // Serial Excel: dias desde 30/12/1899 (UTC)
+    var epoch  = Date.UTC(1899, 11, 30);
+    var serial = (val.getTime() - epoch) / 86400000;
+    if (serial >= 0 && serial <= 10.5) {
+      return String(Math.round(serial * 10) / 10);
+    }
+    return '';  // data real na coluna de score — dado inválido
+  }
+  var n = parseFloat(String(val).replace(',', '.'));
+  return (!isNaN(n) && n >= 0 && n <= 10) ? String(n) : '';
 }
 
 // ════════════════════════════════════════════════════════════
@@ -281,11 +299,14 @@ function markAsWatched(data) {
     data.duration    || '',
     data.date        || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy'),
     '',
-    data.herScore    || '',
-    data.myScore     || '',
+    data.herScore !== undefined && data.herScore !== '' ? parseFloat(data.herScore) : '',
+    data.myScore  !== undefined && data.myScore  !== '' ? parseFloat(data.myScore)  : '',
     data.poster      || '',
     data.releaseDate || '',  // col I
   ]);
+  // Força formato numérico nas células de nota para evitar auto-interpretação como data
+  const lr = sheet.getLastRow();
+  sheet.getRange(lr, 6, 1, 2).setNumberFormat('0.##');
   removeFromWatchlist({ title: data.title });
   return { success: true };
 }
