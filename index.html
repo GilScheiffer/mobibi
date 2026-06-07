@@ -59,6 +59,7 @@
 
     <!-- Tonight's Pick -->
     <div class="tonight-card" id="tonightCard" style="display:none">
+      <div class="tonight-bg-blur" id="tonightBgBlur"></div>
       <div class="tonight-poster-wrap">
         <img class="tonight-poster" id="tonightPoster" src="" alt="">
         <div class="tonight-poster-ph" id="tonightPosterPh">🎬</div>
@@ -67,9 +68,10 @@
         <div class="tonight-badge">🎬 Hoje vocês vão ver</div>
         <h2 class="tonight-title" id="tonightTitle"></h2>
         <div class="tonight-meta" id="tonightMeta"></div>
+        <div class="tonight-streaming" id="tonightStreaming"></div>
         <div class="tonight-actions">
           <button class="btn-primary" onclick="openMarkWatched(state.tonightPick, true)">✅ Acabamos de ver!</button>
-          <button class="btn-ghost" onclick="clearTonightPick()">Cancelar</button>
+          <button class="btn-ghost btn-sm" onclick="clearTonightPick()">✕ Cancelar</button>
         </div>
       </div>
     </div>

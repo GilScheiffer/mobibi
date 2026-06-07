@@ -170,6 +170,10 @@ function renderHome() {
     const meta = [m.genre, m.duration].filter(Boolean).join(' • ');
     document.getElementById('tonightMeta').textContent = meta;
     setPoster('tonightPoster', 'tonightPosterPh', m.poster);
+    const bgBlur = document.getElementById('tonightBgBlur');
+    if (bgBlur) bgBlur.style.backgroundImage = m.poster ? `url(${m.poster})` : 'none';
+    const streamEl = document.getElementById('tonightStreaming');
+    if (streamEl) streamEl.innerHTML = streamingHTML(m.streaming || '', 30);
   } else {
     tc.style.display = 'none';
   }

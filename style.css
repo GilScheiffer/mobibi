@@ -253,77 +253,139 @@ body::after {
    ============================================================ */
 
 .tonight-card {
+  position: relative;
   display: flex;
-  gap: 24px;
-  background: linear-gradient(135deg, var(--surface2), var(--surface3));
-  border: 1px solid var(--accent);
+  background: var(--surface2);
+  border: 1px solid rgba(233,69,96,0.28);
   border-radius: var(--radius-lg);
-  padding: 24px;
   margin-bottom: 36px;
-  box-shadow: var(--accent-glow);
+  overflow: hidden;
+  min-height: 190px;
+  box-shadow: 0 0 60px rgba(233,69,96,0.1), var(--shadow-lg);
   animation: pulseGlow 3s ease-in-out infinite;
-  flex-wrap: wrap;
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 20px rgba(233,69,96,0.3); }
-  50%       { box-shadow: 0 0 40px rgba(233,69,96,0.5); }
+  0%, 100% { box-shadow: 0 0 30px rgba(233,69,96,0.12), var(--shadow); }
+  50%       { box-shadow: 0 0 55px rgba(233,69,96,0.28), var(--shadow-lg); }
 }
 
+/* fundo borrado com o poster — ambient light */
+.tonight-bg-blur {
+  position: absolute;
+  inset: -30px;
+  background: center/cover no-repeat;
+  filter: blur(45px) brightness(0.13) saturate(2.5);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* tudo acima do blur */
+.tonight-poster-wrap,
+.tonight-info { position: relative; z-index: 1; }
+
 .tonight-poster-wrap {
-  position: relative;
-  width: 100px;
-  height: 150px;
+  width: 135px;
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
+/* gradiente lateral: poster dissolve no conteúdo */
+.tonight-poster-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 65px;
+  background: linear-gradient(to right, transparent, rgba(9,9,15,0.93));
+  pointer-events: none;
+  z-index: 1;
+}
+
 .tonight-poster {
-  width: 100%; height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+  object-position: center top;
+  display: block;
 }
 
 .tonight-poster-ph {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%; height: 100%;
+  width: 100%;
+  height: 100%;
+  min-height: 190px;
   background: var(--surface3);
-  font-size: 32px;
+  font-size: 36px;
 }
 
-.tonight-info { flex: 1; min-width: 200px; }
+.tonight-info {
+  flex: 1;
+  padding: 18px 20px 18px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 
 .tonight-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: var(--accent);
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 4px 10px;
+  letter-spacing: 0.1em;
+  padding: 3px 10px;
   border-radius: 20px;
-  margin-bottom: 10px;
+  width: fit-content;
+  margin-bottom: 2px;
 }
 
 .tonight-title {
-  font-size: 22px;
+  font-family: 'Cinzel', serif;
+  font-size: clamp(15px, 3.5vw, 20px);
   font-weight: 700;
-  margin-bottom: 8px;
+  line-height: 1.25;
+  color: var(--text);
 }
 
 .tonight-meta {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text2);
-  margin-bottom: 16px;
 }
+
+.tonight-streaming { margin: 2px 0; }
 
 .tonight-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+/* mobile: poster em cima, info embaixo */
+@media (max-width: 640px) {
+  .tonight-card { flex-direction: column; min-height: 0; }
+
+  .tonight-poster-wrap {
+    width: 100%;
+    height: 210px;
+  }
+
+  .tonight-poster-wrap::after {
+    top: auto; right: 0; left: 0;
+    width: auto; height: 80px;
+    background: linear-gradient(to bottom, transparent, rgba(9,9,15,0.93));
+  }
+
+  .tonight-info {
+    padding: 10px 16px 16px;
+    margin-top: -6px;
+  }
 }
 
 /* ============================================================
