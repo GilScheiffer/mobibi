@@ -89,6 +89,7 @@ function getWatchedMovies() {
       myScore:     _toScoreStr(r[6]),
       poster:      String(r[7] || '').trim(),
       releaseDate: _formatReleaseDate(r[8]),  // col I
+      ratings:     String(r[9] || '').trim(), // col J — JSON OMDb
     });
   }
   movies.reverse();
@@ -135,6 +136,7 @@ function getWatchlist() {
       poster:     String(r[4] || '').trim(),
       releaseDate: _formatReleaseDate(r[5]),  // col F — YYYY-MM-DD
       streaming:  String(r[6] || '').trim(),  // col G — JSON
+      ratings:    String(r[7] || '').trim(),  // col H — JSON OMDb
     });
   }
   return { movies };
@@ -203,6 +205,7 @@ function addToWatchlist(data) {
     data.poster      || '',
     data.releaseDate || '',  // col F — YYYY-MM-DD
     data.streaming   || '',  // col G — JSON providers
+    data.ratings     || '',  // col H — JSON OMDb
   ]);
   return { success: true };
 }
@@ -356,6 +359,7 @@ function markAsWatched(data) {
     data.myScore  !== undefined && data.myScore  !== '' ? parseFloat(data.myScore)  : '',
     data.poster      || '',
     data.releaseDate || '',  // col I
+    data.ratings     || '',  // col J — JSON OMDb
   ]);
   // Força formato numérico nas células de nota para evitar auto-interpretação como data
   const lr = sheet.getLastRow();
@@ -960,6 +964,72 @@ function corrigirFilmesLista() {
   let msg = '✅ ' + corrigidos + ' de ' + correcoes.length + ' filmes corrigidos!';
   if (erros.length) msg += '\n\n⚠️ Ainda sem dados:\n' + erros.join('\n');
   Browser.msgBox(msg);
+}
+
+// ════════════════════════════════════════════════════════════
+// UTILITÁRIO: preenche ratings OMDb nas duas abas
+// Rode: Run → preencherRatings
+// ════════════════════════════════════════════════════════════
+function preencherRatings() {
+  var OMDB_KEY = '771cd71b';
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var count = 0, erros = [];
+
+  // ── Watchlist (col H = índice 7) ──────────────────────────
+  var wlSheet = ss.getSheetByName(WATCHLIST_SHEET);
+  var wlRows  = wlSheet.getDataRange().getValues();
+  if (!wlRows[0][7]) wlSheet.getRange(1,8).setValue('Ratings').setFontWeight('bold').setBackground('#d9ead3');
+
+  for (var i = 1; i < wlRows.length; i++) {
+    var title = String(wlRows[i][0] || '').trim();
+    if (!title || wlRows[i][7]) continue;
+    Utilities.sleep(250);
+    var r = _fetchOMDb(title, OMDB_KEY);
+    if (r) { wlSheet.getRange(i+1,8).setValue(r); count++; }
+    else erros.push(title);
+  }
+
+  // ── Assistidos (col J = índice 9) ─────────────────────────
+  var wdSheet = ss.getSheetByName(WATCHED_SHEET);
+  var wdRows  = wdSheet.getDataRange().getValues();
+  if (!wdRows[0][9]) wdSheet.getRange(1,10).setValue('Ratings').setFontWeight('bold').setBackground('#d9ead3');
+
+  for (var j = 1; j < wdRows.length; j++) {
+    var t = String(wdRows[j][0] || '').trim();
+    if (!t || wdRows[j][9]) continue;
+    Utilities.sleep(250);
+    var rd = _fetchOMDb(t, OMDB_KEY);
+    if (rd) { wdSheet.getRange(j+1,10).setValue(rd); count++; }
+    else erros.push(t);
+  }
+
+  SpreadsheetApp.flush();
+  var msg = '✅ Ratings preenchidos: ' + count + ' filmes.';
+  if (erros.length) msg += '\n\n⚠️ Não encontrados:\n' + erros.join('\n');
+  Browser.msgBox(msg);
+}
+
+function _fetchOMDb(title, key) {
+  try {
+    var url  = 'https://www.omdbapi.com/?t=' + encodeURIComponent(title) + '&apikey=' + key;
+    var res  = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    var data = JSON.parse(res.getContentText());
+    if (data.Response === 'False') return null;
+
+    var rt = (data.Ratings || []).filter(function(r){ return r.Source === 'Rotten Tomatoes'; })[0];
+    var mc = (data.Ratings || []).filter(function(r){ return r.Source === 'Metacritic'; })[0];
+
+    return JSON.stringify({
+      imdb:   data.imdbRating !== 'N/A' ? data.imdbRating : '',
+      rt:     rt ? rt.Value : '',
+      mc:     mc ? mc.Value : '',
+      actors: data.Actors !== 'N/A' ? data.Actors.split(',').slice(0,3).map(function(a){ return a.trim(); }).join(', ') : '',
+      plot:   data.Plot   !== 'N/A' ? data.Plot : '',
+    });
+  } catch(e) {
+    Logger.log('OMDb erro em "' + title + '": ' + e);
+    return null;
+  }
 }
 
 function _minToDuration(minutes) {

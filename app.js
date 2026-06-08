@@ -12,6 +12,8 @@ const NAMES      = { my: 'Gil', her: 'Bia' };
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwFYPqq4nNg6mzJcC-TyQKAZrp3r-G9uZJa5AyAJCsKY5PhIJdf7AS_vVEf5bBuU56C/exec';
 const TMDB_KEY   = 'ea483053614c87cac1dcd2a3a78cd22d';
 
+const OMDB_KEY = '771cd71b';
+
 const cfg = {
   get myName()   { return NAMES.my; },
   get herName()  { return NAMES.her; },
@@ -112,6 +114,42 @@ const TMDB = {
       };
     } catch { return null; }
   }
+};
+
+// ============================================================
+// OMDB
+// ============================================================
+const OMDB = {
+  BASE: 'https://www.omdbapi.com',
+
+  async getByImdbId(imdbId) {
+    const res = await fetch(`${this.BASE}/?i=${imdbId}&apikey=${OMDB_KEY}`);
+    return res.json();
+  },
+
+  async getByTitle(title, year) {
+    const y = year ? `&y=${year}` : '';
+    const res = await fetch(`${this.BASE}/?t=${encodeURIComponent(title)}${y}&apikey=${OMDB_KEY}`);
+    return res.json();
+  },
+
+  parse(data) {
+    if (!data || data.Response === 'False') return null;
+    const rt = (data.Ratings || []).find(r => r.Source === 'Rotten Tomatoes');
+    const mc = (data.Ratings || []).find(r => r.Source === 'Metacritic');
+    return {
+      imdb:   data.imdbRating !== 'N/A' ? data.imdbRating : '',
+      rt:     rt ? rt.Value : '',
+      mc:     mc ? mc.Value : '',
+      actors: data.Actors !== 'N/A' ? data.Actors.split(',').slice(0, 3).map(a => a.trim()).join(', ') : '',
+      plot:   data.Plot   !== 'N/A' ? data.Plot   : '',
+    };
+  },
+
+  toJSON(data) {
+    const p = this.parse(data);
+    return p ? JSON.stringify(p) : '';
+  },
 };
 
 // ============================================================
@@ -393,7 +431,13 @@ function movieCardHTML(movie, type, readonly = false) {
     : '';
   const phHTML = `<div class="movie-card-ph" style="${hasPoster ? 'display:none' : ''}">🎬</div>`;
 
-  let metaLine = [movie.genre, movie.duration].filter(Boolean).join(' • ');
+  const metaLine = movie.genre || '';
+
+  let ratingsObj = null;
+  try { if (movie.ratings) ratingsObj = JSON.parse(movie.ratings); } catch {}
+  const imdbBadge = ratingsObj?.imdb
+    ? `<div class="card-imdb"><span class="card-imdb-star">⭐</span>${esc(ratingsObj.imdb)}<span class="card-imdb-src">IMDb</span></div>`
+    : '';
 
   let scoresHTML = '';
   if (type === 'watched') {
@@ -414,6 +458,7 @@ function movieCardHTML(movie, type, readonly = false) {
       <div class="movie-card-info">
         <div class="movie-card-title">${esc(movie.title)}</div>
         ${metaLine ? `<div class="movie-card-meta">${esc(metaLine)}</div>` : ''}
+        ${imdbBadge}
         ${scoresHTML}
       </div>
     </div>`;
@@ -570,10 +615,13 @@ async function selectTMDBResult(movie) {
       TMDB.getProviders(movie.id),
     ]);
     if (details) {
-      const genres = details.genres?.map(g => g.name).slice(0, 2).join(', ') || '';
-      const duration = TMDB.minutesToDuration(details.runtime);
-      movie.genre    = genres;
-      movie.duration = duration;
+      movie.genre    = details.genres?.map(g => g.name).slice(0, 2).join(', ') || '';
+      movie.duration = TMDB.minutesToDuration(details.runtime);
+      // Usa imdb_id do TMDB para busca precisa no OMDb
+      const omdbRaw  = details.imdb_id
+        ? await OMDB.getByImdbId(details.imdb_id)
+        : await OMDB.getByTitle(movie.title, movie.year);
+      movie.ratings = OMDB.toJSON(omdbRaw);
     }
     movie.streaming = providers ? JSON.stringify(providers) : '';
   } catch { /* Fail silently, user can enter manually */ }
@@ -625,7 +673,8 @@ async function confirmAddMovie() {
 
   const releaseDate = state.addingMovie?.releaseDate || '';
   const streaming   = state.addingMovie?.streaming   || '';
-  const movie = { title, genre, duration, poster, releaseDate, streaming };
+  const ratings     = state.addingMovie?.ratings     || '';
+  const movie = { title, genre, duration, poster, releaseDate, streaming, ratings };
 
   // Optimistic update
   state.watchlist.push(movie);
@@ -747,6 +796,36 @@ function openDetail(title, type) {
 
   document.getElementById('detail-title').textContent = movie.title;
   document.getElementById('detail-meta').textContent  = [movie.genre, movie.duration].filter(Boolean).join(' • ');
+
+  // Ratings (IMDb / RT / Metacritic)
+  let ratingsObj = null;
+  try { if (movie.ratings) ratingsObj = JSON.parse(movie.ratings); } catch {}
+  const ratingsEl = document.getElementById('detail-ratings');
+  if (ratingsEl) {
+    if (ratingsObj && (ratingsObj.imdb || ratingsObj.rt || ratingsObj.mc)) {
+      const badges = [];
+      if (ratingsObj.imdb) badges.push(`<span class="rbadge rbadge-imdb">⭐ ${esc(ratingsObj.imdb)} <span class="rbadge-src">IMDb</span></span>`);
+      if (ratingsObj.rt) {
+        const rtNum = parseInt(ratingsObj.rt);
+        const fresh = !isNaN(rtNum) && rtNum >= 60;
+        badges.push(`<span class="rbadge rbadge-rt ${fresh ? 'rt-fresh' : 'rt-rotten'}">${fresh ? '🍅' : '🤢'} ${esc(ratingsObj.rt)}</span>`);
+      }
+      if (ratingsObj.mc) {
+        const mcNum = parseInt(ratingsObj.mc);
+        const mcCls = mcNum >= 61 ? 'mc-good' : mcNum >= 40 ? 'mc-mid' : 'mc-bad';
+        badges.push(`<span class="rbadge rbadge-mc ${mcCls}">M ${esc(ratingsObj.mc)}</span>`);
+      }
+      ratingsEl.innerHTML = badges.join('');
+    } else {
+      ratingsEl.innerHTML = '';
+    }
+  }
+
+  // Atores e sinopse
+  const actorsEl = document.getElementById('detail-actors');
+  const plotEl   = document.getElementById('detail-plot');
+  if (actorsEl) actorsEl.textContent = ratingsObj?.actors ? `🎭 ${ratingsObj.actors}` : '';
+  if (plotEl)   plotEl.textContent   = ratingsObj?.plot   || '';
 
   const scores = document.getElementById('detail-scores');
 
@@ -886,7 +965,7 @@ async function confirmMarkWatched() {
     return;
   }
 
-  const watchedEntry = { ...movie, date, myScore, herScore, releaseDate: movie.releaseDate || '' };
+  const watchedEntry = { ...movie, date, myScore, herScore, releaseDate: movie.releaseDate || '', ratings: movie.ratings || '' };
 
   // Optimistic update
   state.watched.push(watchedEntry);
