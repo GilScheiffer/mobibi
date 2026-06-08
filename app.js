@@ -618,10 +618,18 @@ async function selectTMDBResult(movie) {
       movie.genre    = details.genres?.map(g => g.name).slice(0, 2).join(', ') || '';
       movie.duration = TMDB.minutesToDuration(details.runtime);
       // Usa imdb_id do TMDB para busca precisa no OMDb
-      const omdbRaw  = details.imdb_id
+      const omdbRaw    = details.imdb_id
         ? await OMDB.getByImdbId(details.imdb_id)
         : await OMDB.getByTitle(movie.title, movie.year);
-      movie.ratings = OMDB.toJSON(omdbRaw);
+      const omdbParsed = OMDB.parse(omdbRaw);
+      // Sinopse vem do TMDB (pt-BR); notas e atores do OMDb
+      movie.ratings = JSON.stringify({
+        imdb:   omdbParsed?.imdb   || '',
+        rt:     omdbParsed?.rt     || '',
+        mc:     omdbParsed?.mc     || '',
+        actors: omdbParsed?.actors || '',
+        plot:   details.overview   || omdbParsed?.plot || '',
+      });
     }
     movie.streaming = providers ? JSON.stringify(providers) : '';
   } catch { /* Fail silently, user can enter manually */ }

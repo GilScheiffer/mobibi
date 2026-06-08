@@ -967,40 +967,68 @@ function corrigirFilmesLista() {
 }
 
 // ════════════════════════════════════════════════════════════
-// UTILITÁRIO: preenche ratings OMDb nas duas abas
+// UTILITÁRIO: preenche ratings nas duas abas (sobrescreve tudo)
+// TMDB fornece imdb_id + sinopse em pt-BR
+// OMDb fornece IMDb/RT/Metacritic via imdb_id (mais preciso)
 // Rode: Run → preencherRatings
 // ════════════════════════════════════════════════════════════
 function preencherRatings() {
+  var TMDB_KEY = 'ea483053614c87cac1dcd2a3a78cd22d';
   var OMDB_KEY = '771cd71b';
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var count = 0, erros = [];
 
-  // ── Watchlist (col H = índice 7) ──────────────────────────
-  var wlSheet = ss.getSheetByName(WATCHLIST_SHEET);
-  var wlRows  = wlSheet.getDataRange().getValues();
-  if (!wlRows[0][7]) wlSheet.getRange(1,8).setValue('Ratings').setFontWeight('bold').setBackground('#d9ead3');
+  var sheets = [
+    { sheet: ss.getSheetByName(WATCHLIST_SHEET), col: 8  },
+    { sheet: ss.getSheetByName(WATCHED_SHEET),   col: 10 },
+  ];
 
-  for (var i = 1; i < wlRows.length; i++) {
-    var title = String(wlRows[i][0] || '').trim();
-    if (!title || wlRows[i][7]) continue;
-    Utilities.sleep(250);
-    var r = _fetchOMDb(title, OMDB_KEY);
-    if (r) { wlSheet.getRange(i+1,8).setValue(r); count++; }
-    else erros.push(title);
-  }
+  for (var s = 0; s < sheets.length; s++) {
+    var sheet = sheets[s].sheet;
+    var col   = sheets[s].col;
+    var rows  = sheet.getDataRange().getValues();
 
-  // ── Assistidos (col J = índice 9) ─────────────────────────
-  var wdSheet = ss.getSheetByName(WATCHED_SHEET);
-  var wdRows  = wdSheet.getDataRange().getValues();
-  if (!wdRows[0][9]) wdSheet.getRange(1,10).setValue('Ratings').setFontWeight('bold').setBackground('#d9ead3');
+    if (!rows[0][col-1]) {
+      sheet.getRange(1, col).setValue('Ratings').setFontWeight('bold').setBackground('#d9ead3');
+    }
 
-  for (var j = 1; j < wdRows.length; j++) {
-    var t = String(wdRows[j][0] || '').trim();
-    if (!t || wdRows[j][9]) continue;
-    Utilities.sleep(250);
-    var rd = _fetchOMDb(t, OMDB_KEY);
-    if (rd) { wdSheet.getRange(j+1,10).setValue(rd); count++; }
-    else erros.push(t);
+    for (var i = 1; i < rows.length; i++) {
+      var title = String(rows[i][0] || '').trim();
+      if (!title) continue;
+
+      Utilities.sleep(350);
+
+      // 1. TMDB: imdb_id + sinopse pt-BR
+      var tmdb = _fetchTMDBForRatings(title, TMDB_KEY);
+
+      // 2. OMDb: notas por imdb_id (preciso) ou título como fallback
+      var omdb = null;
+      if (tmdb && tmdb.imdbId) {
+        Utilities.sleep(200);
+        omdb = _fetchOMDbById(tmdb.imdbId, OMDB_KEY);
+      }
+      if (!omdb) {
+        Utilities.sleep(200);
+        omdb = _fetchOMDbByTitle(title, OMDB_KEY);
+      }
+
+      var combined = {
+        imdb:   omdb ? omdb.imdb   : '',
+        rt:     omdb ? omdb.rt     : '',
+        mc:     omdb ? omdb.mc     : '',
+        actors: omdb ? omdb.actors : '',
+        plot:   (tmdb && tmdb.overview) ? tmdb.overview : (omdb ? omdb.plot : ''),
+      };
+
+      if (combined.imdb || combined.plot) {
+        sheet.getRange(i+1, col).setValue(JSON.stringify(combined));
+        count++;
+        Logger.log('✓ ' + title);
+      } else {
+        erros.push(title);
+        Logger.log('✗ ' + title);
+      }
+    }
   }
 
   SpreadsheetApp.flush();
@@ -1009,27 +1037,53 @@ function preencherRatings() {
   Browser.msgBox(msg);
 }
 
-function _fetchOMDb(title, key) {
+// Busca imdb_id e overview (pt-BR) no TMDB
+function _fetchTMDBForRatings(title, tmdbKey) {
+  try {
+    var searchUrl  = 'https://api.themoviedb.org/3/search/movie?api_key=' + tmdbKey
+      + '&query=' + encodeURIComponent(title) + '&language=pt-BR';
+    var searchData = JSON.parse(UrlFetchApp.fetch(searchUrl, { muteHttpExceptions: true }).getContentText());
+    if (!searchData.results || !searchData.results.length) return null;
+
+    var best = searchData.results[0];
+    Utilities.sleep(200);
+    var detUrl  = 'https://api.themoviedb.org/3/movie/' + best.id + '?api_key=' + tmdbKey + '&language=pt-BR';
+    var det     = JSON.parse(UrlFetchApp.fetch(detUrl, { muteHttpExceptions: true }).getContentText());
+
+    return { imdbId: det.imdb_id || null, overview: det.overview || '' };
+  } catch(e) { Logger.log('TMDB ratings erro: ' + e); return null; }
+}
+
+// Busca notas no OMDb por imdb_id
+function _fetchOMDbById(imdbId, key) {
+  try {
+    var url  = 'https://www.omdbapi.com/?i=' + imdbId + '&apikey=' + key;
+    var data = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
+    return _parseOMDb(data);
+  } catch(e) { return null; }
+}
+
+// Busca notas no OMDb por título (fallback)
+function _fetchOMDbByTitle(title, key) {
   try {
     var url  = 'https://www.omdbapi.com/?t=' + encodeURIComponent(title) + '&apikey=' + key;
-    var res  = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    var data = JSON.parse(res.getContentText());
-    if (data.Response === 'False') return null;
+    var data = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
+    return _parseOMDb(data);
+  } catch(e) { return null; }
+}
 
-    var rt = (data.Ratings || []).filter(function(r){ return r.Source === 'Rotten Tomatoes'; })[0];
-    var mc = (data.Ratings || []).filter(function(r){ return r.Source === 'Metacritic'; })[0];
-
-    return JSON.stringify({
-      imdb:   data.imdbRating !== 'N/A' ? data.imdbRating : '',
-      rt:     rt ? rt.Value : '',
-      mc:     mc ? mc.Value : '',
-      actors: data.Actors !== 'N/A' ? data.Actors.split(',').slice(0,3).map(function(a){ return a.trim(); }).join(', ') : '',
-      plot:   data.Plot   !== 'N/A' ? data.Plot : '',
-    });
-  } catch(e) {
-    Logger.log('OMDb erro em "' + title + '": ' + e);
-    return null;
-  }
+// Parseia resposta do OMDb em objeto
+function _parseOMDb(data) {
+  if (!data || data.Response === 'False') return null;
+  var rt = (data.Ratings || []).filter(function(r){ return r.Source === 'Rotten Tomatoes'; })[0];
+  var mc = (data.Ratings || []).filter(function(r){ return r.Source === 'Metacritic'; })[0];
+  return {
+    imdb:   data.imdbRating !== 'N/A' ? data.imdbRating : '',
+    rt:     rt ? rt.Value : '',
+    mc:     mc ? mc.Value : '',
+    actors: data.Actors !== 'N/A' ? data.Actors.split(',').slice(0,3).map(function(a){ return a.trim(); }).join(', ') : '',
+    plot:   data.Plot   !== 'N/A' ? data.Plot : '',
+  };
 }
 
 function _minToDuration(minutes) {
